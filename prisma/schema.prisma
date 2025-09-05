@@ -1,0 +1,234 @@
+// ==================== GENERATOR & DATASOURCE ====================
+generator client {
+  provider = "prisma-client-js" // Prisma Client untuk query database
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUM ====================
+enum Role {
+  admin
+  staff
+  viewer
+}
+
+enum Status {
+  active
+  inactive
+  suspended
+}
+
+// ==================== USER ====================
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  phone     String?
+  address   String?
+  role      Role      @default(viewer)
+  password  String
+  status    Status    @default(active)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  lastLogin       DateTime? @map("last_login")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt      @map("updated_at")
+
+  // Relasi
+  products             Product[]             @relation("UserCreatedProducts")
+  incomingTransactions IncomingTransaction[] @relation("UserCreatedIncoming")
+  outgoingTransactions OutgoingTransaction[] @relation("UserCreatedOutgoing")
+  stockMovements       StockMovement[]       @relation("UserCreatedStock")
+  auditLogs            AuditLog[]
+}
+
+// ==================== CUSTOMER ====================
+model Customer {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String?
+  address       String?
+  email         String?  @unique
+  contactPerson String?  @map("contact_person")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("customers")
+}
+
+// ==================== SUPPLIER ====================
+model Supplier {
+  id             Int                     @id @default(autoincrement())
+  name           String
+  phone          String?
+  address        String?
+  email          String?
+  contactPerson  String?                 @map("contact_person")
+  status         String                   @default("active")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  // Relasi
+  products             Product[]
+  incomingTransactions IncomingTransaction[]
+
+  @@map("suppliers")
+}
+
+// ==================== PRODUCT CATEGORY ====================
+model ProductCategory {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("product_categories")
+}
+
+// ==================== PRODUCT ====================
+model Product {
+  id           Int       @id @default(autoincrement())
+  cardNumber   String?   @map("card_number")
+  name         String
+  categoryId   Int?      @map("category_id")
+  partNumber   String?   @map("part_number")
+  description  String?
+  stock        Int       @default(0)
+  unitPrice    Decimal   @map("unit_price")
+  reorderLevel Int       @default(0) @map("reorder_level")
+  supplierId   Int?      @map("supplier_id")
+  status       String    @default("active")
+  createdById  Int?      @map("created_by")        // ← tambahkan ini
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relasi
+  category                ProductCategory?          @relation(fields: [categoryId], references: [id])
+  supplier                Supplier?                @relation(fields: [supplierId], references: [id])
+  stockMovements          StockMovement[]
+  incomingTransactionItems IncomingTransactionItem[]
+  outgoingTransactionItems OutgoingTransactionItem[]
+
+  createdByUser User? @relation("UserCreatedProducts", fields: [createdById], references: [id])
+}
+
+// ==================== STOCK MOVEMENT ====================
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @map("product_id")
+  movementType  String   @map("movement_type")
+  quantity      Int
+  previousStock Int      @map("previous_stock")
+  newStock      Int      @map("new_stock")
+  referenceType String?  @map("reference_type")
+  referenceId   Int?     @map("reference_id")
+  notes         String?
+  createdById   Int?     @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product   Product @relation(fields: [productId], references: [id])
+  createdBy User?   @relation("UserCreatedStock", fields: [createdById], references: [id])
+
+  @@map("stock_movements")
+}
+
+// ==================== INCOMING TRANSACTION ITEM ====================
+model IncomingTransactionItem {
+  id                    Int                  @id @default(autoincrement())
+  incomingTransactionId Int                  @map("incoming_transaction_id")
+  productId             Int                  @map("product_id")
+  quantity              Int
+  unitPrice             Decimal              @map("unit_price")
+  totalPrice            Decimal              @map("total_price")
+  notes                 String?
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  incomingTransaction IncomingTransaction @relation(fields: [incomingTransactionId], references: [id])
+  product             Product             @relation(fields: [productId], references: [id])
+
+  @@map("incoming_transaction_items")
+}
+
+// ==================== INCOMING TRANSACTION ====================
+model IncomingTransaction {
+  id              Int      @id @default(autoincrement())
+  supplierId      Int      @map("supplier_id")
+  transactionDate DateTime @map("transaction_date")
+  notes           String?
+  status          String   @default("draft")
+  totalItems      Int      @default(0) @map("total_items")
+  totalValue      Decimal  @default(0.00) @map("total_value")
+  createdById     Int      @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  items    IncomingTransactionItem[]
+
+  createdBy User @relation("UserCreatedIncoming", fields: [createdById], references: [id])
+
+  @@map("incoming_transactions")
+}
+
+// ==================== OUTGOING TRANSACTION ITEM ====================
+model OutgoingTransactionItem {
+  id                    Int                  @id @default(autoincrement())
+  outgoingTransactionId Int                  @map("outgoing_transaction_id")
+  productId             Int                  @map("product_id")
+  quantity              Int
+  unitPrice             Decimal              @map("unit_price")
+  totalPrice            Decimal              @map("total_price")
+  destination           String?
+  notes                 String?
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  outgoingTransaction OutgoingTransaction @relation(fields: [outgoingTransactionId], references: [id])
+  product             Product             @relation(fields: [productId], references: [id])
+
+  @@map("outgoing_transaction_items")
+}
+
+// ==================== OUTGOING TRANSACTION ====================
+model OutgoingTransaction {
+  id              Int                       @id @default(autoincrement())
+  sourceLocation  String                    @map("source_location")
+  transactionDate DateTime                  @map("transaction_date")
+  notes           String?
+  status          String                    @default("draft")
+  totalItems      Int                       @default(0) @map("total_items")
+  totalValue      Decimal                   @default(0.00) @map("total_value")
+  createdById     Int                       @map("created_by")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+
+  items     OutgoingTransactionItem[]
+  createdBy User @relation("UserCreatedOutgoing", fields: [createdById], references: [id])
+
+  @@map("outgoing_transactions")
+}
+
+// ==================== AUDIT LOG ====================
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  action     String
+  tableName  String   @map("table_name")
+  recordId   Int?     @map("record_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
