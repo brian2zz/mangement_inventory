@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
-import { DataTable } from "@/components/data-table"
+import { DataTableV2 as DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth-provider"
 

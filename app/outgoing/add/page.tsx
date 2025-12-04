@@ -1,179 +1,204 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Save, X } from "lucide-react"
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, Save, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+// Selector modals (assume these components exist like in incoming)
+import CustomerSelectModal from "@/components/selectors/CustomerSelectModal";
+import WarehouseSelectModal from "@/components/selectors/WarehouseSelectModal";
+import ProductSelectModal from "@/components/selectors/ProductSelectModal";
 
 interface ProductItem {
-  id: string
-  productName: string
-  partNumber: string
-  quantity: number
-  unitPrice: number
-  destination: string
-  notes: string
+  id: string;
+  productId: number | null;
+  productName?: string | null;
+  partNumber?: string | null;
+  quantity: number;
+  unitPrice: number;
+  stock?: number; // current stock snapshot
+  notes?: string;
 }
 
-// Mock product data for dropdown
-const availableProducts = [
-  { id: "1", name: "Widget A", partNumber: "PN001", unitPrice: 25.99, currentStock: 75 },
-  { id: "2", name: "Widget B", partNumber: "PN002", unitPrice: 15.5, currentStock: 40 },
-  { id: "3", name: "Widget C", partNumber: "PN003", unitPrice: 18.75, currentStock: 200 },
-  { id: "4", name: "Component X", partNumber: "PN004", unitPrice: 8.75, currentStock: 60 },
-  { id: "5", name: "Assembly Y", partNumber: "PN005", unitPrice: 45.0, currentStock: 88 },
-  { id: "6", name: "Electronic Module Z", partNumber: "PN006", unitPrice: 32.25, currentStock: 25 },
-]
-
 export default function AddOutgoingProductPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const router = useRouter();
 
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  // Header data: date, customer, warehouse, notes, status
   const [formData, setFormData] = React.useState({
     date: new Date().toISOString().split("T")[0],
-    source: "",
+    customerId: null as number | null,
+    customerName: "",
+    warehouseId: null as number | null,
+    warehouseName: "",
     notes: "",
     submitStatus: "Draft" as "Draft" | "Done",
-  })
+  });
 
+  // Dynamic items
   const [items, setItems] = React.useState<ProductItem[]>([
-    {
-      id: "1",
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      destination: "",
-      notes: "",
-    },
-  ])
+    { id: Date.now().toString(), productId: null, productName: null, partNumber: null, quantity: 0, unitPrice: 0, stock: 0, notes: "" },
+  ]);
 
+  // Modals
+  const [openCustomerModal, setOpenCustomerModal] = React.useState(false);
+  const [openWarehouseModal, setOpenWarehouseModal] = React.useState(false);
+  const [openProductModal, setOpenProductModal] = React.useState(false);
+  const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
+
+  // ======= Select callbacks =======
+  const handleCustomerSelect = (c: { id: number; name: string }) => {
+    setFormData((p) => ({ ...p, customerId: c.id, customerName: c.name }));
+    setOpenCustomerModal(false);
+  };
+
+  const handleWarehouseSelect = (w: { id: number; name: string }) => {
+    setFormData((p) => ({ ...p, warehouseId: w.id, warehouseName: w.name }));
+    setOpenWarehouseModal(false);
+  };
+
+  const handleProductSelect = (p: { id: number; productName: string; partNumber?: string | null; unitPrice?: number; stock?: number }) => {
+    if (!activeItemId) return;
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === activeItemId
+          ? {
+            ...it,
+            productId: p.id,
+            productName: p.productName,
+            partNumber: p.partNumber ?? null,
+            unitPrice: p.unitPrice ?? 0,
+            stock: p.stock ?? 0,
+          }
+          : it
+      )
+    );
+    setActiveItemId(null);
+    setOpenProductModal(false);
+  };
+
+  // ======= Items manipulation =======
   const addItem = () => {
-    const newItem: ProductItem = {
-      id: Date.now().toString(),
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      destination: "",
-      notes: "",
-    }
-    setItems([...items, newItem])
-  }
+    setItems((prev) => [
+      ...prev,
+      { id: Date.now().toString(), productId: null, productName: null, partNumber: null, quantity: 0, unitPrice: 0, stock: 0, notes: "" },
+    ]);
+  };
 
   const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id))
-    }
-  }
+    if (items.length > 1) setItems((prev) => prev.filter((it) => it.id !== id));
+  };
 
-  const updateItem = (id: string, field: keyof ProductItem, value: string | number) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value }
+  const updateItemField = <K extends keyof ProductItem>(id: string, field: K, value: ProductItem[K]) => {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+  };
 
-          // Auto-fill part number and unit price when product is selected
-          if (field === "productName") {
-            const selectedProduct = availableProducts.find((p) => p.name === value)
-            if (selectedProduct) {
-              updatedItem.partNumber = selectedProduct.partNumber
-              updatedItem.unitPrice = selectedProduct.unitPrice
-            }
-          }
+  // ======= Validation & totals =======
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.date) newErrors.date = "Date is required";
+    if (!formData.customerId) newErrors.customer = "Customer is required";
+    if (!formData.warehouseId) newErrors.warehouse = "Warehouse is required";
 
-          return updatedItem
-        }
-        return item
-      }),
-    )
-  }
+    items.forEach((item, idx) => {
+      if (!item.productId) newErrors[`item_${idx}_product`] = "Product is required";
+      if (!item.quantity || item.quantity <= 0) newErrors[`item_${idx}_quantity`] = "Quantity must be > 0";
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.date) newErrors.date = "Date is required"
-    if (!formData.source) newErrors.source = "Source is required"
-
-    // Validate items
-    items.forEach((item, index) => {
-      if (!item.productName) newErrors[`item_${index}_product`] = "Product is required"
-      if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = "Quantity must be greater than 0"
-      if (!item.destination) newErrors[`item_${index}_destination`] = "Destination is required"
-
-      // Check stock availability
-      const selectedProduct = availableProducts.find((p) => p.name === item.productName)
-      if (selectedProduct && item.quantity > selectedProduct.currentStock) {
-        newErrors[`item_${index}_quantity`] = `Insufficient stock. Available: ${selectedProduct.currentStock}`
+      if (formData.submitStatus === "Done" && item.stock !== undefined && item.quantity > (item.stock ?? 0)) {
+        newErrors[`item_${idx}_quantity`] = `Insufficient stock. Available: ${item.stock ?? 0}`;
       }
-    })
+    });
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const calculateTotals = () => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-    const totalValue = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    return { totalItems, totalValue }
-  }
+    const totalItems = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+    const totalValue = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+    return { totalItems, totalValue };
+  };
 
+  // ======= Save handler =======
   const handleSave = async (status: "Draft" | "Done") => {
+    setFormData((p) => ({ ...p, submitStatus: status }));
     if (!validateForm()) {
-      alert("Please fix the validation errors before saving.")
-      return
+      alert("Please fix the validation errors before saving.");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    const saveData = {
-      ...formData,
-      submitStatus: status,
-      items: items.filter((item) => item.productName && item.quantity > 0),
-      ...calculateTotals(),
+    const payload = {
+      customerId: Number(formData.customerId),
+      warehouseId: Number(formData.warehouseId),
+      transactionDate: formData.date,
+      notes: formData.notes,
+      status,
+      items: items
+        .filter((it) => it.productId)
+        .map((it) => ({
+          productId: Number(it.productId),
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice || 0),
+          notes: it.notes || null,
+        })),
+      totalItems: calculateTotals().totalItems,
+      totalValue: calculateTotals().totalValue,
+      // optionally include createdById if available in client
+    };
+
+    try {
+      const res = await fetch("/api/outgoing-transactions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        console.error("Save failed", json);
+        alert(`Failed to save: ${json.error || res.statusText}`);
+        return;
+      }
+
+      alert("Outgoing transaction saved successfully.");
+      router.push("/outgoing");
+    } catch (err) {
+      console.error("Save error", err);
+      alert("Unexpected error while saving outgoing transaction.");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // Mock save operation
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  const { totalItems, totalValue } = calculateTotals();
 
-    setIsLoading(false)
-    alert(`Outgoing product ${status.toLowerCase()} successfully!`)
-    router.push("/outgoing")
-  }
-
-  const { totalItems, totalValue } = calculateTotals()
-
+  // ======= Render =======
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.back()}
-            className="bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 transition-all duration-300"
-          >
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 text-pink-600" />
           </Button>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
             Add Outgoing Product
           </h1>
         </div>
+
         <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => handleSave("Draft")}
-            disabled={isLoading}
-            className="bg-white/80 hover:bg-white border-pink-200"
-          >
+          <Button variant="outline" onClick={() => handleSave("Draft")} disabled={isLoading}>
             Save as Draft
           </Button>
           <Button onClick={() => handleSave("Done")} disabled={isLoading} className="btn-gradient border-0">
@@ -183,7 +208,7 @@ export default function AddOutgoingProductPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Items</div>
@@ -201,272 +226,150 @@ export default function AddOutgoingProductPage() {
         </div>
       </div>
 
-      {/* Transaction Information */}
+      {/* Transaction Info */}
       <Card className="enhanced-card">
         <CardHeader>
-          <CardTitle className="text-xl text-gray-800">Transaction Information</CardTitle>
+          <CardTitle>Transaction Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="date" className="text-gray-700 font-medium form-label-accent">
-                  Date *
-                </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className={`gradient-input ${errors.date ? "border-red-500" : ""}`}
-                />
-                {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="source" className="text-gray-700 font-medium form-label-accent">
-                  Source *
-                </Label>
-                <Select value={formData.source} onValueChange={(value) => setFormData({ ...formData, source: value })}>
-                  <SelectTrigger className={`gradient-input ${errors.source ? "border-red-500" : ""}`}>
-                    <SelectValue placeholder="Select source warehouse" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Warehouse 1" className="hover:bg-pink-50">
-                      Warehouse 1
-                    </SelectItem>
-                    <SelectItem value="Warehouse 2" className="hover:bg-pink-50">
-                      Warehouse 2
-                    </SelectItem>
-                    <SelectItem value="Warehouse 3" className="hover:bg-pink-50">
-                      Warehouse 3
-                    </SelectItem>
-                    <SelectItem value="Main Storage" className="hover:bg-pink-50">
-                      Main Storage
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.source && <p className="text-red-500 text-sm">{errors.source}</p>}
-              </div>
+            <div className="grid gap-2">
+              <Label>Date *</Label>
+              <Input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData((p) => ({ ...p, date: e.target.value }))}
+                className={errors.date ? "border-red-500" : ""}
+              />
             </div>
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="submitStatus" className="text-gray-700 font-medium form-label-accent">
-                  Submit Status
-                </Label>
-                <Select
-                  value={formData.submitStatus}
-                  onValueChange={(value: "Draft" | "Done") => setFormData({ ...formData, submitStatus: value })}
-                >
-                  <SelectTrigger className="gradient-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Draft" className="hover:bg-pink-50">
-                      Draft
-                    </SelectItem>
-                    <SelectItem value="Done" className="hover:bg-pink-50">
-                      Done
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+
+            <div className="grid gap-2">
+              <Label>Customer *</Label>
+              <div className="flex items-center gap-2">
+                <Input value={formData.customerName} readOnly placeholder="Select customer" />
+                <Button onClick={() => setOpenCustomerModal(true)}>Select Customer</Button>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes" className="text-gray-700 font-medium">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Enter any additional notes"
-                  rows={3}
-                  className="gradient-input resize-none"
-                />
+              {errors.customer && <p className="text-red-500 text-sm">{errors.customer}</p>}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Warehouse *</Label>
+              <div className="flex items-center gap-2">
+                <Input value={formData.warehouseName} readOnly placeholder="Select warehouse" />
+                <Button onClick={() => setOpenWarehouseModal(true)}>Select Warehouse</Button>
               </div>
+              {errors.warehouse && <p className="text-red-500 text-sm">{errors.warehouse}</p>}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Textarea value={formData.notes} onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))} rows={3} />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Products Section */}
+      {/* Products */}
       <Card className="enhanced-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-gray-800">Products</CardTitle>
+          <div className="flex items-center justify-between w-full">
+            <CardTitle>Products</CardTitle>
             <Button onClick={addItem} variant="outline" size="sm" className="btn-gradient border-0 bg-transparent">
               <Plus className="mr-2 h-4 w-4" />
-              Add Another Product
+              Add Product
             </Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          {items.map((item, index) => {
-            const selectedProduct = availableProducts.find((p) => p.name === item.productName)
-
-            return (
-              <div key={item.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-gray-800">Product {index + 1}</h4>
-                  {items.length > 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">Product *</Label>
-                    <Select
-                      value={item.productName}
-                      onValueChange={(value) => updateItem(item.id, "productName", value)}
-                    >
-                      <SelectTrigger
-                        className={`gradient-input ${errors[`item_${index}_product`] ? "border-red-500" : ""}`}
-                      >
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                        {availableProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.name} className="hover:bg-pink-50">
-                            <div className="flex flex-col">
-                              <span>
-                                {product.name} ({product.partNumber})
-                              </span>
-                              <span className="text-xs text-gray-500">Stock: {product.currentStock}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors[`item_${index}_product`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_product`]}</p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium">Part Number</Label>
-                    <Input
-                      value={item.partNumber}
-                      className="gradient-input bg-gray-50"
-                      disabled
-                      placeholder="Auto-filled"
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">Quantity *</Label>
-                    <Input
-                      type="number"
-                      value={item.quantity || ""}
-                      onChange={(e) => updateItem(item.id, "quantity", Number.parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      min="1"
-                      max={selectedProduct?.currentStock || 999}
-                      className={`gradient-input ${errors[`item_${index}_quantity`] ? "border-red-500" : ""}`}
-                    />
-                    {selectedProduct && (
-                      <p className="text-xs text-gray-500">Available: {selectedProduct.currentStock}</p>
-                    )}
-                    {errors[`item_${index}_quantity`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_quantity`]}</p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice || ""}
-                      onChange={(e) => updateItem(item.id, "unitPrice", Number.parseFloat(e.target.value) || 0)}
-                      placeholder="0.00"
-                      className="gradient-input"
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">Destination *</Label>
-                    <Select
-                      value={item.destination}
-                      onValueChange={(value) => updateItem(item.id, "destination", value)}
-                    >
-                      <SelectTrigger
-                        className={`gradient-input ${errors[`item_${index}_destination`] ? "border-red-500" : ""}`}
-                      >
-                        <SelectValue placeholder="Select destination" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                        <SelectItem value="Customer A" className="hover:bg-pink-50">
-                          Customer A
-                        </SelectItem>
-                        <SelectItem value="Customer B" className="hover:bg-pink-50">
-                          Customer B
-                        </SelectItem>
-                        <SelectItem value="Customer C" className="hover:bg-pink-50">
-                          Customer C
-                        </SelectItem>
-                        <SelectItem value="Branch Office" className="hover:bg-pink-50">
-                          Branch Office
-                        </SelectItem>
-                        <SelectItem value="Retail Store" className="hover:bg-pink-50">
-                          Retail Store
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors[`item_${index}_destination`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_destination`]}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Notes</Label>
-                  <Input
-                    value={item.notes}
-                    onChange={(e) => updateItem(item.id, "notes", e.target.value)}
-                    placeholder="Optional notes for this product"
-                    className="gradient-input"
-                  />
-                </div>
-
-                {item.quantity > 0 && item.unitPrice > 0 && (
-                  <div className="flex justify-end">
-                    <div className="text-sm text-gray-600">
-                      Subtotal:{" "}
-                      <span className="font-medium text-red-600">${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                    </div>
-                  </div>
+          {items.map((item, idx) => (
+            <div key={item.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Product {idx + 1}</h4>
+                {items.length > 1 && (
+                  <Button variant="outline" size="sm" onClick={() => removeItem(item.id)}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
-            )
-          })}
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                {/* Product select */}
+                <div className="grid gap-2">
+                  <Label>Product *</Label>
+                  <div className="flex items-center gap-2">
+                    <Input value={item.productName ?? ""} readOnly placeholder="Select product" className={errors[`item_${idx}_product`] ? "border-red-500" : ""} />
+                    <Button
+                      onClick={() => {
+                        setActiveItemId(item.id);
+                        setOpenProductModal(true);
+                      }}
+                    >
+                      Select
+                    </Button>
+                  </div>
+                  {errors[`item_${idx}_product`] && <p className="text-red-500 text-sm">{errors[`item_${idx}_product`]}</p>}
+                </div>
+
+                {/* part number */}
+                <div className="grid gap-2">
+                  <Label>Part Number</Label>
+                  <Input value={item.partNumber ?? ""} readOnly />
+                </div>
+
+                {/* quantity */}
+                <div className="grid gap-2">
+                  <Label>Quantity *</Label>
+                  <Input
+                    type="number"
+                    value={item.quantity || ""}
+                    onChange={(e) => updateItemField(item.id, "quantity", Number.parseInt(e.target.value) || 0)}
+                    className={errors[`item_${idx}_quantity`] ? "border-red-500" : ""}
+                    min={1}
+                    max={item.stock ?? undefined}
+                  />
+                  {item.stock !== undefined && <p className="text-xs text-gray-500">Available: {item.stock}</p>}
+                  {errors[`item_${idx}_quantity`] && <p className="text-red-500 text-sm">{errors[`item_${idx}_quantity`]}</p>}
+                </div>
+
+                {/* unit price */}
+                <div className="grid gap-2">
+                  <Label>Unit Price</Label>
+                  <Input type="number" step="0.01" value={item.unitPrice || ""} onChange={(e) => updateItemField(item.id, "unitPrice", Number.parseFloat(e.target.value) || 0)} />
+                </div>
+
+                {/* notes per item */}
+                <div className="grid gap-2">
+                  <Label>Notes</Label>
+                  <Input value={item.notes || ""} onChange={(e) => updateItemField(item.id, "notes", e.target.value)} />
+                </div>
+              </div>
+
+              {/* subtotal */}
+              <div className="flex justify-end">
+                <div className="text-sm text-gray-600">
+                  Subtotal: <span className="font-medium text-red-600">${((item.quantity || 0) * (item.unitPrice || 0)).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
+      {/* bottom actions */}
       <div className="flex items-center justify-end space-x-4 pb-6">
-        <Button variant="outline" onClick={() => router.back()} className="bg-white/80 hover:bg-white border-pink-200">
-          Cancel
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => handleSave("Draft")}
-          disabled={isLoading}
-          className="bg-white/80 hover:bg-white border-pink-200"
-        >
-          Save as Draft
-        </Button>
-        <Button onClick={() => handleSave("Done")} disabled={isLoading} className="btn-gradient border-0">
+        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+        <Button variant="outline" onClick={() => handleSave("Draft")}>Save as Draft</Button>
+        <Button onClick={() => handleSave("Done")} className="btn-gradient border-0">
           <Save className="mr-2 h-4 w-4" />
-          {isLoading ? "Submitting..." : "Submit Transaction"}
+          Submit Transaction
         </Button>
       </div>
+
+      {/* Modals */}
+      <CustomerSelectModal open={openCustomerModal} onClose={() => setOpenCustomerModal(false)} onSelect={handleCustomerSelect} />
+      <WarehouseSelectModal open={openWarehouseModal} onClose={() => setOpenWarehouseModal(false)} onSelect={handleWarehouseSelect} />
+      <ProductSelectModal open={openProductModal} onClose={() => setOpenProductModal(false)} onSelect={handleProductSelect} />
     </div>
-  )
+  );
 }

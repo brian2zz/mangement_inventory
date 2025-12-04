@@ -49,24 +49,33 @@ export default function AddCustomerPage() {
   }
 
   const handleSave = async () => {
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
+    setErrors({});
 
     try {
-      // Mock API call - replace with actual API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-      alert("Customer added successfully!")
-      router.push("/customers")
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Failed to add customer");
+        return;
+      }
+
+      alert("Customer added successfully!");
+      router.push("/customers");
     } catch (error) {
-      alert("Failed to add customer. Please try again.")
+      console.error(error);
+      alert("Failed to add customer. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
@@ -210,16 +219,6 @@ export default function AddCustomerPage() {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end space-x-4 pb-6">
-        <Button variant="outline" onClick={() => router.back()} className="bg-white/80 hover:bg-white border-pink-200">
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isLoading} className="btn-gradient border-0">
-          <Save className="mr-2 h-4 w-4" />
-          {isLoading ? "Saving..." : "Save Customer"}
-        </Button>
-      </div>
     </div>
   )
 }

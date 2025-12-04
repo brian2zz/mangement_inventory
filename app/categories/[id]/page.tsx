@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
-import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowLeft, Save, Trash2, Edit } from "lucide-react"
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowLeft, Save, Trash2, Edit } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { DataTable } from "@/components/data-table"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { DataTable } from "@/components/data-table";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,15 +21,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
+// ----------------------
+// MOCK PRODUCT DATA
+// ----------------------
 interface Product {
-  id: string
-  productName: string
-  partNumber: string
-  stock: number
-  unitPrice: number
-  supplier: string
+  id: string;
+  productName: string;
+  partNumber: string;
+  stock: number;
+  unitPrice: number;
+  supplier: string;
 }
 
 const mockProducts: Product[] = [
@@ -57,7 +60,7 @@ const mockProducts: Product[] = [
     unitPrice: 12.75,
     supplier: "Supplier ABC",
   },
-]
+];
 
 const productColumns: ColumnDef<Product>[] = [
   {
@@ -72,59 +75,126 @@ const productColumns: ColumnDef<Product>[] = [
     accessorKey: "stock",
     header: "Stock",
     cell: ({ row }) => {
-      const stock = row.getValue("stock") as number
-      return <Badge variant={stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive"}>{stock}</Badge>
+      const stock = row.getValue("stock") as number;
+      return (
+        <Badge variant={stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive"}>
+          {stock}
+        </Badge>
+      );
     },
   },
   {
     accessorKey: "unitPrice",
     header: "Unit Price",
     cell: ({ row }) => {
-      const price = row.getValue("unitPrice") as number
-      return `$${price.toFixed(2)}`
+      const price = row.getValue("unitPrice") as number;
+      return `$${price.toFixed(2)}`;
     },
   },
   {
     accessorKey: "supplier",
     header: "Supplier",
   },
-]
+];
 
+// ----------------------
+// MAIN COMPONENT
+// ----------------------
 export default function CategoryDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [isEditing, setIsEditing] = React.useState(false)
+  const params = useParams();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
 
+  // ✅ category diambil dari backend untuk "Category Information"
   const [category, setCategory] = React.useState({
     id: params.id as string,
-    categoryName: "Electronics",
-    description: "Electronic components and devices for various applications",
-    productCount: 45,
-    totalValue: 15750.25,
-    createdDate: "2024-01-01",
-    lastUpdated: "2024-01-15",
-  })
+    categoryName: "",
+    description: "",
+    productCount: 45, // dummy
+    totalValue: 15750.25, // dummy
+    createdDate: "",
+    lastUpdated: "",
+  });
 
+  // ==============================
+  // 🔍 Fetch category detail (API)
+  // ==============================
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/categories/${params.id}`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Gagal memuat kategori");
+
+      const data = json.data;
+      setCategory((prev) => ({
+        ...prev,
+        categoryName: data.name || "",
+        description: data.description || "",
+        createdDate: new Date(data.createdAt).toISOString().split("T")[0],
+        lastUpdated: new Date(data.updatedAt).toISOString().split("T")[0],
+      }));
+
+      console.log("✅ Fetched category:", data);
+    } catch (err: any) {
+      console.error("❌ Gagal fetch kategori:", err);
+      alert(err.message || "Terjadi kesalahan saat memuat data kategori");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
+  }, [params.id]);
+
+  // ==============================
+  // 💾 Handle save (PUT)
+  // ==============================
   const handleSave = async () => {
-    setIsLoading(true)
-    // Mock save operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    setIsEditing(false)
-    alert("Category updated successfully!")
-  }
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/categories/${params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryName: category.categoryName,
+          description: category.description,
+        }),
+      });
 
-  const handleDelete = async () => {
-    setIsLoading(true)
-    // Mock delete operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/categories")
-  }
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal memperbarui kategori");
+      }
 
+      alert("Kategori berhasil diperbarui!");
+      setIsEditing(false);
+      fetchData(); // refresh data
+    } catch (err: any) {
+      console.error("❌ Update gagal:", err);
+      alert(err.message || "Terjadi kesalahan saat update kategori");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ==============================
+  // 🗑️ Handle delete (dummy dulu)
+  // ==============================
+  const handleDelete = async (id: number) => {
+    alert(`(Dummy) Delete category id ${id}`);
+  };
+
+  // ==============================
+  // 🧱 UI
+  // ==============================
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
@@ -180,9 +250,11 @@ export default function CategoryDetailPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-white hover:bg-gray-50 border-pink-200">Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="bg-white hover:bg-gray-50 border-pink-200">
+                  Cancel
+                </AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={handleDelete}
+                  onClick={() => handleDelete(parseInt(category.id))}
                   className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
                 >
                   Delete
@@ -193,7 +265,7 @@ export default function CategoryDetailPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards (dummy) */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Product Count</div>
@@ -213,7 +285,7 @@ export default function CategoryDetailPage() {
         </div>
       </div>
 
-      {/* Category Details */}
+      {/* Category Information (✅ Connected to backend) */}
       <div className="enhanced-card p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Category Information</h2>
         <div className="grid gap-6 md:grid-cols-2">
@@ -238,9 +310,8 @@ export default function CategoryDetailPage() {
                 id="createdDate"
                 type="date"
                 value={category.createdDate}
-                onChange={(e) => setCategory({ ...category, createdDate: e.target.value })}
                 className="gradient-input"
-                disabled={!isEditing}
+                disabled
               />
             </div>
           </div>
@@ -262,11 +333,11 @@ export default function CategoryDetailPage() {
         </div>
       </div>
 
-      {/* Products in Category */}
+      {/* Products (dummy) */}
       <div className="enhanced-card p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Products in this Category</h2>
         <DataTable columns={productColumns} data={mockProducts} searchPlaceholder="Search products..." />
       </div>
     </div>
-  )
+  );
 }

@@ -14,6 +14,7 @@ export default function AddSupplierPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [serverError, setServerError] = React.useState<string | null>(null)
 
   const [formData, setFormData] = React.useState({
     supplierName: "",
@@ -48,20 +49,37 @@ export default function AddSupplierPage() {
   }
 
   const handleSave = async () => {
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setIsLoading(true)
+    setServerError(null)
 
     try {
-      // Mock API call - replace with actual API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.supplierName,
+          phone: formData.phoneNumber,
+          address: formData.address,
+          email: formData.email,
+          contactPerson: formData.contactPerson,
+          notes: formData.notes,
+          status: "active",
+        }),
+      })
 
-      alert("Supplier added successfully!")
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to save supplier")
+      }
+
+      alert("✅ Supplier added successfully!")
       router.push("/suppliers")
-    } catch (error) {
-      alert("Failed to add supplier. Please try again.")
+    } catch (error: any) {
+      console.error("Error saving supplier:", error)
+      setServerError(error.message || "Failed to save supplier. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -69,6 +87,7 @@ export default function AddSupplierPage() {
 
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
@@ -98,6 +117,14 @@ export default function AddSupplierPage() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {serverError && (
+        <div className="p-4 rounded-md bg-red-50 border border-red-200 text-red-700">
+          <p>{serverError}</p>
+        </div>
+      )}
+
+      {/* Form Card */}
       <Card className="enhanced-card">
         <CardHeader>
           <CardTitle className="text-xl text-gray-800">Supplier Information</CardTitle>
@@ -196,8 +223,8 @@ export default function AddSupplierPage() {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end space-x-4 pb-6">
+      {/* Footer Buttons */}
+      {/* <div className="flex items-center justify-end space-x-4 pb-6">
         <Button variant="outline" onClick={() => router.back()} className="bg-white/80 hover:bg-white border-pink-200">
           Cancel
         </Button>
@@ -205,7 +232,7 @@ export default function AddSupplierPage() {
           <Save className="mr-2 h-4 w-4" />
           {isLoading ? "Saving..." : "Save Supplier"}
         </Button>
-      </div>
+      </div> */}
     </div>
   )
 }

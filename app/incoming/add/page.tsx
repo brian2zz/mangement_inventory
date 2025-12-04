@@ -1,415 +1,414 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Save, X } from "lucide-react"
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, Save, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-interface ProductItem {
-  id: string
-  productName: string
-  partNumber: string
-  quantity: number
-  unitPrice: number
-  notes: string
+import SupplierSelectModal from "@/components/selectors/SupplierSelectModal";
+import ProductSelectModal from "@/components/selectors/ProductSelectModal";
+import WarehouseSelectModal from "@/components/selectors/WarehouseSelectModal";
+
+interface Supplier {
+  id: number;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
 }
 
-// Mock product data for dropdown
-const availableProducts = [
-  { id: "1", name: "Widget A", partNumber: "PN001", unitPrice: 25.99 },
-  { id: "2", name: "Widget B", partNumber: "PN002", unitPrice: 15.5 },
-  { id: "3", name: "Widget C", partNumber: "PN003", unitPrice: 18.75 },
-  { id: "4", name: "Component X", partNumber: "PN004", unitPrice: 8.75 },
-  { id: "5", name: "Assembly Y", partNumber: "PN005", unitPrice: 45.0 },
-  { id: "6", name: "Electronic Module Z", partNumber: "PN006", unitPrice: 32.25 },
-]
+interface ProductRow {
+  id: number;
+  productName: string;
+  partNumber?: string | null;
+  unitPrice?: number;
+  stock?: number;
+}
 
+interface ProductItem {
+  id: string;
+  productId: number | null;
+  productName?: string | null;
+  partNumber?: string | null;
+  quantity: number;
+  unitPrice: number;
+  stock?: number;
+  notes?: string;
+}
+
+// ==========================================================
+// PAGE COMPONENT
+// ==========================================================
 export default function AddIncomingProductPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const router = useRouter();
 
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  // Form header
   const [formData, setFormData] = React.useState({
     date: new Date().toISOString().split("T")[0],
-    supplier: "",
+    supplierId: null as number | null,
+    supplierName: "",
+    warehouseId: null as number | null,
+    warehouseName: "",
     notes: "",
     submitStatus: "Draft" as "Draft" | "Done",
-  })
+  });
 
+
+  // Items (dynamic)
   const [items, setItems] = React.useState<ProductItem[]>([
-    {
-      id: "1",
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      notes: "",
-    },
-  ])
+    { id: Date.now().toString(), productId: null, productName: null, partNumber: null, quantity: 0, unitPrice: 0, stock: 0, notes: "" },
+  ]);
 
+  // Modals
+  const [openSupplierModal, setOpenSupplierModal] = React.useState(false);
+  const [openProductModal, setOpenProductModal] = React.useState(false);
+  const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
+  const [openWarehouseModal, setOpenWarehouseModal] = React.useState(false);
+  // ==========================================================
+  // SELECTORS CALLBACKS
+  // ==========================================================
+  const handleSupplierSelect = (s: Supplier) => {
+    setFormData((prev) => ({ ...prev, supplierId: s.id, supplierName: s.name }));
+  };
+
+  const handleProductSelect = (p: ProductRow) => {
+    if (!activeItemId) return;
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === activeItemId
+          ? {
+            ...it,
+            productId: p.id,
+            productName: p.productName,
+            partNumber: p.partNumber ?? null,
+            unitPrice: p.unitPrice ?? 0,
+            stock: p.stock ?? 0,
+          }
+          : it
+      )
+    );
+    setActiveItemId(null);
+  };
+
+  // ==========================================================
+  // ITEMS LOGIC
+  // ==========================================================
   const addItem = () => {
-    const newItem: ProductItem = {
-      id: Date.now().toString(),
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      notes: "",
-    }
-    setItems([...items, newItem])
-  }
+    setItems((prev) => [
+      ...prev,
+      { id: Date.now().toString(), productId: null, productName: null, partNumber: null, quantity: 0, unitPrice: 0, stock: 0, notes: "" },
+    ]);
+  };
 
   const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id))
-    }
-  }
+    if (items.length > 1) setItems((prev) => prev.filter((i) => i.id !== id));
+  };
 
-  const updateItem = (id: string, field: keyof ProductItem, value: string | number) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value }
+  const updateItemField = <K extends keyof ProductItem>(id: string, field: K, value: ProductItem[K]) => {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+  };
 
-          // Auto-fill part number and unit price when product is selected
-          if (field === "productName") {
-            const selectedProduct = availableProducts.find((p) => p.name === value)
-            if (selectedProduct) {
-              updatedItem.partNumber = selectedProduct.partNumber
-              updatedItem.unitPrice = selectedProduct.unitPrice
-            }
-          }
-
-          return updatedItem
-        }
-        return item
-      }),
-    )
-  }
-
+  // ==========================================================
+  // VALIDATION
+  // ==========================================================
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
+    if (!formData.date) newErrors.date = "Date is required";
+    if (!formData.supplierId) newErrors.supplier = "Supplier is required";
+    if (!formData.warehouseId) newErrors.warehouse = "Warehouse is required";
+    items.forEach((item, idx) => {
+      if (!item.productId) newErrors[`item_${idx}_product`] = "Product is required";
+      if (!item.quantity || item.quantity <= 0) newErrors[`item_${idx}_quantity`] = "Quantity must be > 0";
+    });
 
-    if (!formData.date) newErrors.date = "Date is required"
-    if (!formData.supplier) newErrors.supplier = "Supplier is required"
-
-    // Validate items
-    items.forEach((item, index) => {
-      if (!item.productName) newErrors[`item_${index}_product`] = "Product is required"
-      if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = "Quantity must be greater than 0"
-    })
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const calculateTotals = () => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-    const totalValue = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    return { totalItems, totalValue }
-  }
+    const totalItems = items.reduce((s, it) => s + (it.quantity || 0), 0);
+    const totalValue = items.reduce((s, it) => s + (it.quantity || 0) * (it.unitPrice || 0), 0);
+    return { totalItems, totalValue };
+  };
 
+  // ==========================================================
+  // SAVE HANDLER → CALL BACKEND
+  // ==========================================================
   const handleSave = async (status: "Draft" | "Done") => {
     if (!validateForm()) {
-      alert("Please fix the validation errors before saving.")
-      return
+      alert("Please fix validation errors.");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    const saveData = {
-      ...formData,
-      submitStatus: status,
-      items: items.filter((item) => item.productName && item.quantity > 0),
-      ...calculateTotals(),
+    const payload = {
+      supplierId: Number(formData.supplierId),
+      warehouseId: Number(formData.warehouseId), // adapt if warehouse selection added
+      transactionDate: formData.date,
+      notes: formData.notes,
+      status,
+      items: items.map((it) => ({
+        productId: it.productId,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        notes: it.notes,
+      })),
+    };
+
+    try {
+      const res = await fetch("/api/incoming-transactions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to save");
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Save failed");
+
+      alert("Transaction saved");
+      router.push("/incoming");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save incoming transaction.");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // Mock save operation
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  const { totalItems, totalValue } = calculateTotals();
 
-    setIsLoading(false)
-    alert(`Incoming product ${status.toLowerCase()} successfully!`)
-    router.push("/incoming")
-  }
-
-  const { totalItems, totalValue } = calculateTotals()
-
+  // ==========================================================
+  // RENDER
+  // ==========================================================
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.back()}
-            className="bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 transition-all duration-300"
-          >
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 text-pink-600" />
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
             Add Incoming Product
           </h1>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => handleSave("Draft")}
-            disabled={isLoading}
-            className="bg-white/80 hover:bg-white border-pink-200"
-          >
+
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => handleSave("Draft")} disabled={isLoading}>
             Save as Draft
           </Button>
-          <Button onClick={() => handleSave("Done")} disabled={isLoading} className="btn-gradient border-0">
+          <Button className="btn-gradient" onClick={() => handleSave("Done")} disabled={isLoading}>
             <Save className="mr-2 h-4 w-4" />
             {isLoading ? "Submitting..." : "Submit"}
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* SUMMARY */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Items</div>
-          <div className="text-2xl font-bold text-pink-600">{totalItems}</div>
+          <div>Total Items</div>
+          <div className="text-2xl font-bold">{totalItems}</div>
         </div>
         <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Value</div>
+          <div>Total Value</div>
           <div className="text-2xl font-bold text-green-600">${totalValue.toFixed(2)}</div>
         </div>
         <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Status</div>
-          <Badge variant={formData.submitStatus === "Done" ? "default" : "secondary"} className="mt-1">
-            {formData.submitStatus}
-          </Badge>
+          <div>Status</div>
+          <Badge>{formData.submitStatus}</Badge>
         </div>
       </div>
 
-      {/* Transaction Information */}
+      {/* TRANSACTION INFO */}
       <Card className="enhanced-card">
         <CardHeader>
-          <CardTitle className="text-xl text-gray-800">Transaction Information</CardTitle>
+          <CardTitle>Transaction Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="date" className="text-gray-700 font-medium form-label-accent">
-                  Date *
-                </Label>
+            {/* DATE */}
+            <div className="grid gap-2">
+              <Label>Date *</Label>
+              <Input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData((s) => ({ ...s, date: e.target.value }))}
+                className={errors.date ? "border-red-500" : ""}
+              />
+            </div>
+
+            {/* SUPPLIER */}
+            <div className="grid gap-2">
+              <Label>Supplier *</Label>
+              <div className="flex items-center gap-2">
+                <Input value={formData.supplierName} readOnly placeholder="Select supplier" />
+                <Button
+                  onClick={() => {
+                    setOpenSupplierModal(true);
+                  }}
+                >
+                  Select Supplier
+                </Button>
+              </div>
+              {errors.supplier && <p className="text-red-500 text-sm">{errors.supplier}</p>}
+            </div>
+            {/* WAREHOUSE */}
+            <div className="grid gap-2">
+              <Label>Warehouse *</Label>
+              <div className="flex items-center gap-2">
                 <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className={`gradient-input ${errors.date ? "border-red-500" : ""}`}
+                  value={formData.warehouseName || ""}
+                  readOnly
+                  placeholder="Select warehouse"
                 />
-                {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="supplier" className="text-gray-700 font-medium form-label-accent">
-                  Supplier *
-                </Label>
-                <Select
-                  value={formData.supplier}
-                  onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                <Button
+                  onClick={() => {
+                    setOpenWarehouseModal(true);
+                  }}
                 >
-                  <SelectTrigger className={`gradient-input ${errors.supplier ? "border-red-500" : ""}`}>
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Supplier ABC" className="hover:bg-pink-50">
-                      Supplier ABC
-                    </SelectItem>
-                    <SelectItem value="Supplier XYZ" className="hover:bg-pink-50">
-                      Supplier XYZ
-                    </SelectItem>
-                    <SelectItem value="Supplier DEF" className="hover:bg-pink-50">
-                      Supplier DEF
-                    </SelectItem>
-                    <SelectItem value="Supplier GHI" className="hover:bg-pink-50">
-                      Supplier GHI
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.supplier && <p className="text-red-500 text-sm">{errors.supplier}</p>}
+                  Select
+                </Button>
               </div>
+              {errors.warehouse && (
+                <p className="text-red-500 text-sm">{errors.warehouse}</p>
+              )}
             </div>
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="submitStatus" className="text-gray-700 font-medium form-label-accent">
-                  Submit Status
-                </Label>
-                <Select
-                  value={formData.submitStatus}
-                  onValueChange={(value: "Draft" | "Done") => setFormData({ ...formData, submitStatus: value })}
-                >
-                  <SelectTrigger className="gradient-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Draft" className="hover:bg-pink-50">
-                      Draft
-                    </SelectItem>
-                    <SelectItem value="Done" className="hover:bg-pink-50">
-                      Done
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes" className="text-gray-700 font-medium">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Enter any additional notes"
-                  rows={3}
-                  className="gradient-input resize-none"
-                />
-              </div>
-            </div>
+          </div>
+
+          {/* NOTES */}
+          <div className="grid gap-2">
+            <Label>Notes</Label>
+            <Textarea value={formData.notes} onChange={(e) => setFormData((s) => ({ ...s, notes: e.target.value }))} rows={3} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Products Section */}
+      {/* PRODUCTS */}
       <Card className="enhanced-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-gray-800">Products</CardTitle>
-            <Button onClick={addItem} variant="outline" size="sm" className="btn-gradient border-0 bg-transparent">
+          <div className="flex justify-between items-center w-full">
+            <CardTitle>Products</CardTitle>
+            <Button onClick={addItem}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Another Product
+              Add Product
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {items.map((item, index) => (
-            <div key={item.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-800">Product {index + 1}</h4>
+          {items.map((item, idx) => (
+            <div key={item.id} className="p-4 border rounded-lg space-y-4">
+              <div className="flex justify-between">
+                <h4>Item {idx + 1}</h4>
                 {items.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeItem(item.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                  >
+                  <Button variant="outline" size="sm" onClick={() => removeItem(item.id)}>
                     <X className="h-4 w-4" />
                   </Button>
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* PRODUCT SELECT */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium form-label-accent">Product *</Label>
-                  <Select value={item.productName} onValueChange={(value) => updateItem(item.id, "productName", value)}>
-                    <SelectTrigger
-                      className={`gradient-input ${errors[`item_${index}_product`] ? "border-red-500" : ""}`}
+                  <Label>Product *</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={item.productName ?? ""}
+                      placeholder="Select product"
+                      readOnly
+                      className={errors[`item_${idx}_product`] ? "border-red-500" : ""}
+                    />
+                    <Button
+                      onClick={() => {
+                        setActiveItemId(item.id);
+                        setOpenProductModal(true);
+                      }}
                     >
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                      {availableProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.name} className="hover:bg-pink-50">
-                          {product.name} ({product.partNumber})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors[`item_${index}_product`] && (
-                    <p className="text-red-500 text-sm">{errors[`item_${index}_product`]}</p>
-                  )}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Part Number</Label>
-                  <Input
-                    value={item.partNumber}
-                    className="gradient-input bg-gray-50"
-                    disabled
-                    placeholder="Auto-filled"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium form-label-accent">Quantity *</Label>
-                  <Input
-                    type="number"
-                    value={item.quantity || ""}
-                    onChange={(e) => updateItem(item.id, "quantity", Number.parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                    min="1"
-                    className={`gradient-input ${errors[`item_${index}_quantity`] ? "border-red-500" : ""}`}
-                  />
-                  {errors[`item_${index}_quantity`] && (
-                    <p className="text-red-500 text-sm">{errors[`item_${index}_quantity`]}</p>
-                  )}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Unit Price</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={item.unitPrice || ""}
-                    onChange={(e) => updateItem(item.id, "unitPrice", Number.parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                    className="gradient-input"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label className="text-gray-700 font-medium">Notes</Label>
-                <Input
-                  value={item.notes}
-                  onChange={(e) => updateItem(item.id, "notes", e.target.value)}
-                  placeholder="Optional notes for this product"
-                  className="gradient-input"
-                />
-              </div>
-
-              {item.quantity > 0 && item.unitPrice > 0 && (
-                <div className="flex justify-end">
-                  <div className="text-sm text-gray-600">
-                    Subtotal:{" "}
-                    <span className="font-medium text-green-600">${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                      Select
+                    </Button>
                   </div>
+                  {errors[`item_${idx}_product`] && <p className="text-red-500 text-sm">{errors[`item_${idx}_product`]}</p>}
                 </div>
-              )}
+
+                {/* PART NUMBER (display only) */}
+                <div className="grid gap-2">
+                  <Label>Part Number</Label>
+                  <Input value={item.partNumber ?? ""} readOnly placeholder="Auto" />
+                </div>
+
+                {/* QUANTITY */}
+                <div className="grid gap-2">
+                  <Label>Quantity *</Label>
+                  <Input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateItemField(item.id, "quantity", Number(e.target.value))}
+                    className={errors[`item_${idx}_quantity`] ? "border-red-500" : ""}
+                  />
+                </div>
+
+                {/* UNIT PRICE */}
+                <div className="grid gap-2">
+                  <Label>Unit Price</Label>
+                  <Input
+                    type="number"
+                    value={item.unitPrice}
+                    onChange={(e) => updateItemField(item.id, "unitPrice", Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              {/* NOTES */}
+              <div className="grid gap-2">
+                <Label>Notes</Label>
+                <Input value={item.notes} onChange={(e) => updateItemField(item.id, "notes", e.target.value)} />
+              </div>
+
+              {/* Subtotal */}
+              <div className="flex justify-end">
+                <div className="text-sm text-gray-600">
+                  Subtotal:{" "}
+                  <span className="font-medium text-green-600">
+                    ${(item.quantity * (item.unitPrice || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end space-x-4 pb-6">
-        <Button variant="outline" onClick={() => router.back()} className="bg-white/80 hover:bg-white border-pink-200">
-          Cancel
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => handleSave("Draft")}
-          disabled={isLoading}
-          className="bg-white/80 hover:bg-white border-pink-200"
-        >
-          Save as Draft
-        </Button>
-        <Button onClick={() => handleSave("Done")} disabled={isLoading} className="btn-gradient border-0">
-          <Save className="mr-2 h-4 w-4" />
-          {isLoading ? "Submitting..." : "Submit Transaction"}
-        </Button>
-      </div>
+      {/* Hidden Modals */}
+      <SupplierSelectModal
+        open={openSupplierModal}
+        onClose={() => setOpenSupplierModal(false)}
+        onSelect={handleSupplierSelect}
+      />
+
+      <WarehouseSelectModal
+        open={openWarehouseModal}
+        onClose={() => setOpenWarehouseModal(false)}
+        onSelect={(w) => {
+          setFormData((prev) => ({
+            ...prev,
+            warehouseId: w.id,
+            warehouseName: w.name,
+          }));
+        }}
+      />
+
+      <ProductSelectModal open={openProductModal} onClose={() => setOpenProductModal(false)} onSelect={handleProductSelect} />
     </div>
-  )
+  );
 }

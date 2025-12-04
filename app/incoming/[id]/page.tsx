@@ -1,16 +1,15 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Save, Trash2, Edit, Plus, X } from "lucide-react"
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Save, Trash2, Edit, Plus, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,220 +20,394 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
-interface ProductItem {
-  id: string
-  productName: string
-  partNumber: string
-  quantity: number
-  unitPrice: number
-  notes: string
-}
+import SupplierSelectModal from "@/components/selectors/SupplierSelectModal";
+import WarehouseSelectModal from "@/components/selectors/WarehouseSelectModal";
+import ProductSelectModal from "@/components/selectors/ProductSelectModal";
 
-// Mock product data for dropdown
-const availableProducts = [
-  { id: "1", name: "Widget A", partNumber: "PN001", unitPrice: 25.99 },
-  { id: "2", name: "Widget B", partNumber: "PN002", unitPrice: 15.5 },
-  { id: "3", name: "Widget C", partNumber: "PN003", unitPrice: 18.75 },
-  { id: "4", name: "Component X", partNumber: "PN004", unitPrice: 8.75 },
-  { id: "5", name: "Assembly Y", partNumber: "PN005", unitPrice: 45.0 },
-  { id: "6", name: "Electronic Module Z", partNumber: "PN006", unitPrice: 32.25 },
-]
+/**
+ * Page: app/incoming/[id]/page.tsx
+ *
+ * Behavior:
+ * - Loads detail from GET /api/incoming-transactions/:id
+ * - Draft: can edit supplier, warehouse, date, notes, items (add/remove/edit)
+ * - Done: can only edit transactionDate & notes
+ * - Save Draft -> PUT with full payload (when status = Draft)
+ * - Submit (Done) -> PUT with status = "Done" (transition triggers stock update on backend)
+ * - Delete -> DELETE /api/incoming-transactions/:id (backend will rollback stock if Done)
+ *
+ * Requires selector components:
+ * - components/selectors/SupplierSelectModal.tsx
+ * - components/selectors/WarehouseSelectModal.tsx
+ * - components/selectors/ProductSelectModal.tsx
+ */
 
-// Mock existing product items
-const mockProductItems: ProductItem[] = [
-  {
-    id: "1",
-    productName: "Widget A",
-    partNumber: "PN001",
-    quantity: 50,
-    unitPrice: 25.99,
-    notes: "Initial stock order",
-  },
-  {
-    id: "2",
-    productName: "Widget B",
-    partNumber: "PN002",
-    quantity: 30,
-    unitPrice: 15.5,
-    notes: "Backup inventory",
-  },
-  {
-    id: "3",
-    productName: "Component X",
-    partNumber: "PN004",
-    quantity: 20,
-    unitPrice: 8.75,
-    notes: "Special components",
-  },
-]
+type APIItem = {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  quantity: number;
+  unitPrice: number;
+  notes?: string | null;
+  product?: { id: number; name?: string; stock?: number } | null;
+};
 
-export default function IncomingProductDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [isEditing, setIsEditing] = React.useState(false)
-  const [errors, setErrors] = React.useState<Record<string, string>>({})
+type APIPayload = {
+  id: number;
+  transactionDate: string;
+  supplierId?: number | null;
+  supplier?: { id: number; name?: string } | null;
+  warehouseId?: number | null;
+  warehouse?: { id: number; name?: string } | null;
+  notes?: string | null;
+  status: string;
+  totalItems: number;
+  totalValue: number;
+  items: APIItem[];
+  createdBy?: { id: number; name?: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-  const [incomingProduct, setIncomingProduct] = React.useState({
-    id: params.id as string,
-    date: "2024-01-15",
-    supplier: "Supplier ABC",
-    notes: "Monthly stock replenishment",
-    submitStatus: "Done" as "Draft" | "Done",
-  })
+type ItemRow = {
+  id: string; // string for row identity
+  productId: number | null;
+  productName?: string | null;
+  partNumber?: string | null;
+  quantity: number;
+  unitPrice: number;
+  stock?: number;
+  notes?: string | null;
+};
 
-  const [items, setItems] = React.useState<ProductItem[]>(mockProductItems)
+export default function IncomingEditPage() {
+  const params = useParams() as { id?: string };
+  const router = useRouter();
+  const idParam = params?.id ?? "";
 
-  const addItem = () => {
-    const newItem: ProductItem = {
-      id: Date.now().toString(),
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      notes: "",
+  const [loading, setLoading] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  // header form state
+  const [header, setHeader] = React.useState({
+    transactionDate: new Date().toISOString().split("T")[0],
+    supplierId: null as number | null,
+    supplierName: "",
+    warehouseId: null as number | null,
+    warehouseName: "",
+    notes: "",
+    status: "Draft" as "Draft" | "Done" | string,
+  });
+
+  // items
+  const [items, setItems] = React.useState<ItemRow[]>([]);
+
+  // validation errors
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  // modals + active item
+  const [openSupplierModal, setOpenSupplierModal] = React.useState(false);
+  const [openWarehouseModal, setOpenWarehouseModal] = React.useState(false);
+  const [openProductModal, setOpenProductModal] = React.useState(false);
+  const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
+
+  // load detail
+  React.useEffect(() => {
+    if (!idParam) return;
+    const fetchDetail = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/incoming-transactions/${idParam}`);
+        if (!res.ok) throw new Error("Failed to fetch transaction");
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Failed to load");
+
+        const d: APIPayload = json.data;
+
+        setHeader({
+          transactionDate: d.transactionDate ? new Date(d.transactionDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          supplierId: d.supplierId ?? null,
+          supplierName: d.supplier?.name ?? "",
+          warehouseId: d.warehouseId ?? null,
+          warehouseName: d.warehouse?.name ?? "",
+          notes: d.notes ?? "",
+          status: d.status ?? "Draft",
+        });
+
+        const mapped = (d.items || []).map((it) => ({
+          id: String(it.id),
+          productId: it.productId ?? null,
+          productName: it.productName ?? it.product?.name ?? null,
+          partNumber: undefined,
+          quantity: it.quantity ?? 0,
+          unitPrice: Number(it.unitPrice ?? 0),
+          stock: it.product?.stock ?? 0,
+          notes: it.notes ?? null,
+        })) as ItemRow[];
+
+        setItems(mapped);
+      } catch (err) {
+        console.error(err);
+        alert("Gagal memuat detail transaksi.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [idParam]);
+
+  // helpers
+  const addItem = () =>
+    setItems((prev) => [
+      ...prev,
+      { id: Date.now().toString(), productId: null, productName: null, partNumber: null, quantity: 0, unitPrice: 0, stock: 0, notes: "" },
+    ]);
+
+  const removeItem = (rowId: string) => setItems((prev) => prev.filter((r) => r.id !== rowId));
+
+  const updateItem = <K extends keyof ItemRow>(rowId: string, field: K, value: ItemRow[K]) =>
+    setItems((prev) => prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)));
+
+  // modal callbacks
+  const onSupplierSelect = (s: { id: number; name: string }) => setHeader((h) => ({ ...h, supplierId: s.id, supplierName: s.name }));
+  const onWarehouseSelect = (w: { id: number; name: string }) => setHeader((h) => ({ ...h, warehouseId: w.id, warehouseName: w.name }));
+  const onProductSelect = (p: { id: number; productName: string; partNumber?: string | null; unitPrice?: number; stock?: number }) => {
+    if (!activeItemId) return;
+    updateItem(activeItemId, "productId", p.id);
+    updateItem(activeItemId, "productName", p.productName ?? null);
+    updateItem(activeItemId, "partNumber", p.partNumber ?? null);
+    updateItem(activeItemId, "unitPrice", Number(p.unitPrice ?? 0));
+    updateItem(activeItemId, "stock", Number(p.stock ?? 0));
+    setActiveItemId(null);
+  };
+
+  // validation
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!header.transactionDate) errs.transactionDate = "Date is required";
+    if (!header.supplierId) errs.supplier = "Supplier is required";
+    if (!header.warehouseId) errs.warehouse = "Warehouse is required";
+
+    // if Draft, validate item-level
+    if (header.status === "Draft") {
+      items.forEach((it, idx) => {
+        if (!it.productId) errs[`item_${idx}_product`] = "Product is required";
+        if (!it.quantity || it.quantity <= 0) errs[`item_${idx}_quantity`] = "Quantity must be > 0";
+      });
     }
-    setItems([...items, newItem])
-  }
 
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id))
-    }
-  }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
-  const updateItem = (id: string, field: keyof ProductItem, value: string | number) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value }
+  const totals = React.useMemo(() => {
+    const totalItems = items.reduce((s, it) => s + (it.quantity || 0), 0);
+    const totalValue = items.reduce((s, it) => s + (it.quantity || 0) * (it.unitPrice || 0), 0);
+    return { totalItems, totalValue };
+  }, [items]);
 
-          // Auto-fill part number and unit price when product is selected
-          if (field === "productName") {
-            const selectedProduct = availableProducts.find((p) => p.name === value)
-            if (selectedProduct) {
-              updatedItem.partNumber = selectedProduct.partNumber
-              updatedItem.unitPrice = selectedProduct.unitPrice
-            }
-          }
-
-          return updatedItem
-        }
-        return item
-      }),
-    )
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!incomingProduct.date) newErrors.date = "Date is required"
-    if (!incomingProduct.supplier) newErrors.supplier = "Supplier is required"
-
-    // Validate items
-    items.forEach((item, index) => {
-      if (!item.productName) newErrors[`item_${index}_product`] = "Product is required"
-      if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = "Quantity must be greater than 0"
-    })
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const calculateTotals = () => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-    const totalValue = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    return { totalItems, totalValue }
-  }
-
+  // Save Draft (or generic save when header.status === 'Done' only allows date & notes)
   const handleSave = async () => {
-    if (!validateForm()) {
-      alert("Please fix the validation errors before saving.")
-      return
+    // If not in editing mode, toggle to editing
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
     }
 
-    setIsLoading(true)
-    // Mock save operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    setIsEditing(false)
-    alert("Incoming product updated successfully!")
-  }
+    // validate
+    if (!validate()) {
+      alert("Periksa validasi sebelum menyimpan.");
+      return;
+    }
 
+    setLoading(true);
+    try {
+      let payload: any = {};
+
+      // If original status is Done, backend accepts only date & notes (we follow that rule)
+      if (header.status === "Done") {
+        payload.transactionDate = header.transactionDate;
+        payload.notes = header.notes;
+        // allow updating status if user still chooses to keep "Done"
+        payload.status = header.status;
+      } else {
+        // Draft -> full update allowed
+        payload = {
+          supplierId: header.supplierId,
+          warehouseId: header.warehouseId,
+          transactionDate: header.transactionDate,
+          notes: header.notes,
+          status: header.status,
+          items: items.map((it) => ({
+            productId: it.productId,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            notes: it.notes,
+          })),
+        };
+      }
+
+      const res = await fetch(`/api/incoming-transactions/${idParam}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        console.error("PUT error", json);
+        throw new Error(json?.error || "Failed to update");
+      }
+
+      alert("Berhasil menyimpan.");
+      setIsEditing(false);
+
+      // reload or navigate to detail (we reload current page by reloading)
+      router.push(`/incoming/${idParam}`);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menyimpan transaksi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Submit -> change status to Done (only if currently Draft)
+  const handleSubmitDone = async () => {
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    // Only allow transition if currently Draft
+    if (header.status !== "Draft") return alert("Hanya transaksi Draft yang bisa disubmit.");
+
+    // validate fully
+    if (!validate()) {
+      alert("Periksa validasi sebelum submit.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        status: "Done",
+        supplierId: header.supplierId,
+        warehouseId: header.warehouseId,
+        transactionDate: header.transactionDate,
+        notes: header.notes,
+        items: items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          notes: it.notes,
+        })),
+      };
+
+      const res = await fetch(`/api/incoming-transactions/${idParam}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        console.error("Submit error", json);
+        throw new Error(json?.error || "Failed to submit");
+      }
+
+      alert("Transaksi berhasil disubmit (Done).");
+      router.push(`/incoming/${idParam}`);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal submit transaksi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete
   const handleDelete = async () => {
-    setIsLoading(true)
-    // Mock delete operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/incoming")
-  }
+    if (!confirm("Hapus transaksi ini? Tindakan ini tidak dapat dibatalkan.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/incoming-transactions/${idParam}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Failed to delete");
+      }
+      alert("Transaksi dihapus.");
+      router.push("/incoming");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menghapus transaksi.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  const { totalItems, totalValue } = calculateTotals()
+  const isDone = header.status === "Done";
+  const canEditHeader = isEditing && !isDone;
+  const canEditItems = isEditing && !isDone;
 
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.back()}
-            className="bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 transition-all duration-300"
-          >
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 text-pink-600" />
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-            Incoming Product Details
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            Incoming Transaction #{idParam}
           </h1>
         </div>
+
         <div className="flex items-center space-x-2">
           {!isEditing ? (
             <Button onClick={() => setIsEditing(true)} className="btn-gradient border-0">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
+              <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
           ) : (
             <>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-                className="bg-white/80 hover:bg-white border-pink-200"
-              >
+              <Button variant="outline" onClick={() => setIsEditing(false)} className="bg-white/80">
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={isLoading} className="btn-gradient border-0">
+
+              {/* Save Draft */}
+              <Button onClick={handleSave} disabled={loading} className="btn-gradient border-0">
                 <Save className="mr-2 h-4 w-4" />
-                {isLoading ? "Saving..." : "Save"}
+                {loading ? "Saving..." : "Save Draft"}
               </Button>
+
+              {/* Submit -> only show when Draft */}
+              {header.status === "Draft" && (
+                <Button onClick={handleSubmitDone} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Save className="mr-2 h-4 w-4" />
+                  {loading ? "Submitting..." : "Submit (Done)"}
+                </Button>
+              )}
             </>
           )}
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0"
-              >
+              <Button variant="destructive" disabled={deleting} className="bg-gradient-to-r from-red-500 to-red-600 border-0">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-white/95 backdrop-blur-sm border-pink-200">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-gray-800">Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-600">
-                  This action cannot be undone. This will permanently delete the incoming product record and remove all
-                  associated data.
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Deleting this transaction {isDone ? "will rollback stock and " : ""}permanently remove it.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-white hover:bg-gray-50 border-pink-200">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                >
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-gradient-to-r from-red-500 to-red-600">
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -243,251 +416,187 @@ export default function IncomingProductDetailPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* summary cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Items</div>
-          <div className="text-2xl font-bold text-pink-600">{totalItems}</div>
+          <div className="text-2xl font-bold text-pink-600">{totals.totalItems}</div>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Value</div>
-          <div className="text-2xl font-bold text-green-600">${totalValue.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-green-600">${totals.totalValue.toFixed(2)}</div>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Status</div>
-          <Badge variant={incomingProduct.submitStatus === "Done" ? "default" : "secondary"} className="mt-1">
-            {incomingProduct.submitStatus}
+          <Badge variant={isDone ? "default" : "secondary"} className="mt-1">
+            {header.status}
           </Badge>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Date</div>
-          <div className="text-lg font-medium text-gray-800">{incomingProduct.date}</div>
+          <div className="text-lg font-medium text-gray-800">{header.transactionDate}</div>
         </div>
       </div>
 
-      {/* Details Form */}
+      {/* header form */}
       <div className="enhanced-card p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Incoming Product Information</h2>
+        <h2 className="text-xl font-semibold mb-4">Transaction Information</h2>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="date" className="text-gray-700 font-medium form-label-accent">
-                Date {isEditing && "*"}
-              </Label>
+              <Label>Date {isEditing && "*"}</Label>
               <Input
-                id="date"
                 type="date"
-                value={incomingProduct.date}
-                onChange={(e) => setIncomingProduct({ ...incomingProduct, date: e.target.value })}
-                className={`gradient-input ${errors.date ? "border-red-500" : ""}`}
+                value={header.transactionDate}
+                onChange={(e) => setHeader((h) => ({ ...h, transactionDate: e.target.value }))}
+                className={errors.transactionDate ? "border-red-500" : ""}
                 disabled={!isEditing}
               />
-              {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
+              {errors.transactionDate && <p className="text-red-500 text-sm">{errors.transactionDate}</p>}
             </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="supplier" className="text-gray-700 font-medium form-label-accent">
-                Supplier {isEditing && "*"}
-              </Label>
-              {isEditing ? (
-                <Select
-                  value={incomingProduct.supplier}
-                  onValueChange={(value) => setIncomingProduct({ ...incomingProduct, supplier: value })}
-                >
-                  <SelectTrigger className={`gradient-input ${errors.supplier ? "border-red-500" : ""}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Supplier ABC" className="hover:bg-pink-50">
-                      Supplier ABC
-                    </SelectItem>
-                    <SelectItem value="Supplier XYZ" className="hover:bg-pink-50">
-                      Supplier XYZ
-                    </SelectItem>
-                    <SelectItem value="Supplier DEF" className="hover:bg-pink-50">
-                      Supplier DEF
-                    </SelectItem>
-                    <SelectItem value="Supplier GHI" className="hover:bg-pink-50">
-                      Supplier GHI
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={incomingProduct.supplier} className="gradient-input" disabled />
-              )}
+              <Label>Supplier {isEditing && header.status === "Draft" ? "*" : ""}</Label>
+              <div className="flex items-center gap-2">
+                <Input value={header.supplierName} readOnly />
+                <Button onClick={() => isEditing && header.status === "Draft" && setOpenSupplierModal(true)} disabled={!isEditing || header.status !== "Draft"}>
+                  Select
+                </Button>
+              </div>
               {errors.supplier && <p className="text-red-500 text-sm">{errors.supplier}</p>}
             </div>
           </div>
+
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="status" className="text-gray-700 font-medium form-label-accent">
-                Status
-              </Label>
-              {isEditing ? (
-                <Select
-                  value={incomingProduct.submitStatus}
-                  onValueChange={(value: "Draft" | "Done") =>
-                    setIncomingProduct({ ...incomingProduct, submitStatus: value })
-                  }
-                >
-                  <SelectTrigger className="gradient-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Draft" className="hover:bg-pink-50">
-                      Draft
-                    </SelectItem>
-                    <SelectItem value="Done" className="hover:bg-pink-50">
-                      Done
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="p-2">
-                  <Badge variant={incomingProduct.submitStatus === "Done" ? "default" : "secondary"}>
-                    {incomingProduct.submitStatus}
-                  </Badge>
-                </div>
-              )}
+              <Label>Warehouse {isEditing && header.status === "Draft" ? "*" : ""}</Label>
+              <div className="flex items-center gap-2">
+                <Input value={header.warehouseName} readOnly />
+                <Button onClick={() => isEditing && header.status === "Draft" && setOpenWarehouseModal(true)} disabled={!isEditing || header.status !== "Draft"}>
+                  Select
+                </Button>
+              </div>
+              {errors.warehouse && <p className="text-red-500 text-sm">{errors.warehouse}</p>}
             </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="notes" className="text-gray-700 font-medium">
-                Notes
-              </Label>
-              <Textarea
-                id="notes"
-                value={incomingProduct.notes}
-                onChange={(e) => setIncomingProduct({ ...incomingProduct, notes: e.target.value })}
-                rows={3}
-                className="gradient-input resize-none"
-                disabled={!isEditing}
-              />
+              <Label>Notes</Label>
+              <Textarea value={header.notes} onChange={(e) => setHeader((h) => ({ ...h, notes: e.target.value }))} rows={3} disabled={!isEditing} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Product Items */}
+      {/* items */}
       <Card className="enhanced-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-gray-800">Product Items</CardTitle>
-            {isEditing && (
-              <Button onClick={addItem} variant="outline" size="sm" className="btn-gradient border-0 bg-transparent">
+          <div className="flex justify-between items-center w-full">
+            <CardTitle>Product Items</CardTitle>
+            {isEditing && header.status === "Draft" && (
+              <Button onClick={addItem}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
               </Button>
             )}
           </div>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          {items.map((item, index) => (
-            <div key={item.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
+          {items.map((it, idx) => (
+            <div key={it.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-800">Product {index + 1}</h4>
-                {isEditing && items.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeItem(item.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                  >
+                <h4 className="font-medium">Product {idx + 1}</h4>
+                {isEditing && header.status === "Draft" && items.length > 1 && (
+                  <Button variant="outline" size="sm" onClick={() => removeItem(it.id)}>
                     <X className="h-4 w-4" />
                   </Button>
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* product selector */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium form-label-accent">Product {isEditing && "*"}</Label>
-                  {isEditing ? (
-                    <Select
-                      value={item.productName}
-                      onValueChange={(value) => updateItem(item.id, "productName", value)}
+                  <Label>Product {isEditing && header.status === "Draft" ? "*" : ""}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input value={it.productName ?? ""} readOnly />
+                    <Button
+                      onClick={() => {
+                        if (isEditing && header.status === "Draft") {
+                          setActiveItemId(it.id);
+                          setOpenProductModal(true);
+                        }
+                      }}
+                      disabled={!isEditing || header.status !== "Draft"}
                     >
-                      <SelectTrigger
-                        className={`gradient-input ${errors[`item_${index}_product`] ? "border-red-500" : ""}`}
-                      >
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                        {availableProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.name} className="hover:bg-pink-50">
-                            {product.name} ({product.partNumber})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={item.productName} className="gradient-input" disabled />
-                  )}
-                  {errors[`item_${index}_product`] && (
-                    <p className="text-red-500 text-sm">{errors[`item_${index}_product`]}</p>
-                  )}
+                      Select
+                    </Button>
+                  </div>
+                  {errors[`item_${idx}_product`] && <p className="text-red-500 text-sm">{errors[`item_${idx}_product`]}</p>}
                 </div>
 
+                {/* part number */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Part Number</Label>
-                  <Input
-                    value={item.partNumber}
-                    className="gradient-input bg-gray-50"
-                    disabled
-                    placeholder="Auto-filled"
-                  />
+                  <Label>Part Number</Label>
+                  <Input value={it.partNumber ?? ""} readOnly />
                 </div>
 
+                {/* quantity */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium form-label-accent">Quantity {isEditing && "*"}</Label>
+                  <Label>Quantity {isEditing && header.status === "Draft" ? "*" : ""}</Label>
                   <Input
                     type="number"
-                    value={item.quantity || ""}
-                    onChange={(e) => updateItem(item.id, "quantity", Number.parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                    min="1"
-                    className={`gradient-input ${errors[`item_${index}_quantity`] ? "border-red-500" : ""}`}
-                    disabled={!isEditing}
+                    value={it.quantity}
+                    onChange={(e) => {
+                      if (isEditing && header.status === "Draft") updateItem(it.id, "quantity", Number(e.target.value || 0));
+                    }}
+                    disabled={!isEditing || header.status !== "Draft"}
                   />
-                  {errors[`item_${index}_quantity`] && (
-                    <p className="text-red-500 text-sm">{errors[`item_${index}_quantity`]}</p>
-                  )}
+                  {errors[`item_${idx}_quantity`] && <p className="text-red-500 text-sm">{errors[`item_${idx}_quantity`]}</p>}
                 </div>
 
+                {/* unit price */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Unit Price</Label>
+                  <Label>Unit Price</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    value={item.unitPrice || ""}
-                    onChange={(e) => updateItem(item.id, "unitPrice", Number.parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                    className="gradient-input"
-                    disabled={!isEditing}
+                    value={it.unitPrice}
+                    onChange={(e) => {
+                      if (isEditing && header.status === "Draft") updateItem(it.id, "unitPrice", Number(e.target.value || 0));
+                    }}
+                    disabled={!isEditing || header.status !== "Draft"}
                   />
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label className="text-gray-700 font-medium">Notes</Label>
+                <Label>Notes</Label>
                 <Input
-                  value={item.notes}
-                  onChange={(e) => updateItem(item.id, "notes", e.target.value)}
-                  placeholder="Optional notes for this product"
-                  className="gradient-input"
-                  disabled={!isEditing}
+                  value={it.notes ?? ""}
+                  onChange={(e) => {
+                    if (isEditing && header.status === "Draft") updateItem(it.id, "notes", e.target.value);
+                  }}
+                  disabled={!isEditing || header.status !== "Draft"}
                 />
               </div>
 
-              {item.quantity > 0 && item.unitPrice > 0 && (
-                <div className="flex justify-end">
-                  <div className="text-sm text-gray-600">
-                    Subtotal:{" "}
-                    <span className="font-medium text-green-600">${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                  </div>
+              <div className="flex justify-end">
+                <div className="text-sm text-gray-600">
+                  Subtotal: <span className="font-medium text-green-600">${(it.quantity * it.unitPrice).toFixed(2)}</span>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      {/* selectors modals */}
+      <SupplierSelectModal open={openSupplierModal} onClose={() => setOpenSupplierModal(false)} onSelect={onSupplierSelect} />
+      <WarehouseSelectModal open={openWarehouseModal} onClose={() => setOpenWarehouseModal(false)} onSelect={onWarehouseSelect} />
+      <ProductSelectModal open={openProductModal} onClose={() => setOpenProductModal(false)} onSelect={onProductSelect} />
     </div>
-  )
+  );
 }

@@ -1,16 +1,15 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Save, Trash2, Edit, Plus, X } from "lucide-react"
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Save, Trash2, Edit, Plus, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,204 +20,427 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
-interface ProductItem {
-  id: string
-  productName: string
-  partNumber: string
-  quantity: number
-  unitPrice: number
-  destination: string
-  notes: string
-}
+import WarehouseSelectModal from "@/components/selectors/WarehouseSelectModal";
+import CustomerSelectModal from "@/components/selectors/CustomerSelectModal";
+import ProductSelectModal from "@/components/selectors/ProductSelectModal";
 
-// Mock product data for dropdown
-const availableProducts = [
-  { id: "1", name: "Widget A", partNumber: "PN001", unitPrice: 25.99, currentStock: 75 },
-  { id: "2", name: "Widget B", partNumber: "PN002", unitPrice: 15.5, currentStock: 40 },
-  { id: "3", name: "Widget C", partNumber: "PN003", unitPrice: 18.75, currentStock: 200 },
-  { id: "4", name: "Component X", partNumber: "PN004", unitPrice: 8.75, currentStock: 60 },
-  { id: "5", name: "Assembly Y", partNumber: "PN005", unitPrice: 45.0, currentStock: 88 },
-  { id: "6", name: "Electronic Module Z", partNumber: "PN006", unitPrice: 32.25, currentStock: 25 },
-]
+// ==== TYPES DARI API (MIRIP INCOMING) ====
 
-// Mock existing product items
-const mockProductItems: ProductItem[] = [
-  {
-    id: "1",
-    productName: "Widget A",
-    partNumber: "PN001",
-    quantity: 25,
-    unitPrice: 25.99,
-    destination: "Customer 123",
-    notes: "Rush order",
-  },
-  {
-    id: "2",
-    productName: "Widget B",
-    partNumber: "PN002",
-    quantity: 15,
-    unitPrice: 15.5,
-    destination: "Customer 456",
-    notes: "Standard delivery",
-  },
-]
+type APIItem = {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  partNumber?: string | null;
+  quantity: number;
+  unitPrice: number;
+  totalPrice?: number;
+  notes?: string | null;
+};
 
-export default function OutgoingProductDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [isEditing, setIsEditing] = React.useState(false)
-  const [errors, setErrors] = React.useState<Record<string, string>>({})
+type APIPayload = {
+  id: number;
+  transactionDate: string;
+  customerId?: number | null;
+  customer?: { id: number; name?: string } | null;
+  warehouseId?: number | null;
+  warehouse?: { id: number; name?: string } | null;
+  notes?: string | null;
+  status: string;
+  totalItems: number;
+  totalValue: number;
+  items: APIItem[];
+  createdBy?: { id: number; name?: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-  const [outgoingProduct, setOutgoingProduct] = React.useState({
-    id: params.id as string,
-    date: "2024-01-15",
-    source: "Warehouse 1",
-    notes: "Customer order fulfillment",
-    submitStatus: "Done" as "Draft" | "Done",
-  })
+type StatusType = "Draft" | "Done" | string;
 
-  const [items, setItems] = React.useState<ProductItem[]>(mockProductItems)
+type ItemRow = {
+  id: string;
+  productId: number | null;
+  productName?: string | null;
+  partNumber?: string | null;
+  quantity: number;
+  unitPrice: number;
+  notes?: string | null;
+};
 
-  const addItem = () => {
-    const newItem: ProductItem = {
-      id: Date.now().toString(),
-      productName: "",
-      partNumber: "",
-      quantity: 0,
-      unitPrice: 0,
-      destination: "",
-      notes: "",
-    }
-    setItems([...items, newItem])
-  }
+export default function OutgoingEditPage() {
+  const params = useParams() as { id?: string };
+  const router = useRouter();
+  const idParam = params?.id ?? "";
 
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id))
-    }
-  }
+  const [loading, setLoading] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
-  const updateItem = (id: string, field: keyof ProductItem, value: string | number) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value }
+  // HEADER STATE
+  const [header, setHeader] = React.useState({
+    transactionDate: new Date().toISOString().split("T")[0],
+    warehouseId: null as number | null,
+    warehouseName: "",
+    customerId: null as number | null,
+    customerName: "",
+    notes: "",
+    status: "Draft" as StatusType,
+  });
 
-          // Auto-fill part number and unit price when product is selected
-          if (field === "productName") {
-            const selectedProduct = availableProducts.find((p) => p.name === value)
-            if (selectedProduct) {
-              updatedItem.partNumber = selectedProduct.partNumber
-              updatedItem.unitPrice = selectedProduct.unitPrice
-            }
-          }
+  // ITEMS
+  const [items, setItems] = React.useState<ItemRow[]>([]);
 
-          return updatedItem
-        }
-        return item
-      }),
-    )
-  }
+  // VALIDATION ERRORS
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+  // MODALS
+  const [openWarehouseModal, setOpenWarehouseModal] = React.useState(false);
+  const [openCustomerModal, setOpenCustomerModal] = React.useState(false);
+  const [openProductModal, setOpenProductModal] = React.useState(false);
+  const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
 
-    if (!outgoingProduct.date) newErrors.date = "Date is required"
-    if (!outgoingProduct.source) newErrors.source = "Source is required"
+  // ================== LOAD DETAIL (GET) ==================
+  React.useEffect(() => {
+    if (!idParam) return;
 
-    // Validate items
-    items.forEach((item, index) => {
-      if (!item.productName) newErrors[`item_${index}_product`] = "Product is required"
-      if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = "Quantity must be greater than 0"
-      if (!item.destination) newErrors[`item_${index}_destination`] = "Destination is required"
+    const fetchDetail = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/outgoing-transactions/${idParam}`);
+        if (!res.ok) throw new Error("Failed to fetch transaction");
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Failed to load");
 
-      // Check stock availability
-      const selectedProduct = availableProducts.find((p) => p.name === item.productName)
-      if (selectedProduct && item.quantity > selectedProduct.currentStock) {
-        newErrors[`item_${index}_quantity`] = `Insufficient stock. Available: ${selectedProduct.currentStock}`
+        const d: APIPayload = json.data;
+
+        setHeader({
+          transactionDate: d.transactionDate
+            ? new Date(d.transactionDate).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          warehouseId: d.warehouseId ?? null,
+          warehouseName: d.warehouse?.name ?? "",
+          customerId: d.customerId ?? null,
+          customerName: d.customer?.name ?? "",
+          notes: d.notes ?? "",
+          status: d.status ?? "Draft",
+        });
+
+        const mapped = (d.items || []).map((it) => ({
+          id: String(it.id),
+          productId: it.productId ?? null,
+          productName: it.productName ?? null,
+          partNumber: it.partNumber ?? null,
+          quantity: it.quantity ?? 0,
+          unitPrice: Number(it.unitPrice ?? 0),
+          notes: it.notes ?? null,
+        })) as ItemRow[];
+
+        setItems(mapped.length ? mapped : [
+          {
+            id: Date.now().toString(),
+            productId: null,
+            productName: null,
+            partNumber: null,
+            quantity: 0,
+            unitPrice: 0,
+            notes: "",
+          },
+        ]);
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load outgoing transaction.");
+      } finally {
+        setLoading(false);
       }
-    })
+    };
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    fetchDetail();
+  }, [idParam]);
 
-  const calculateTotals = () => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-    const totalValue = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    return { totalItems, totalValue }
-  }
+  // ================== HELPERS ==================
+  const addItem = () =>
+    setItems((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        productId: null,
+        productName: null,
+        partNumber: null,
+        quantity: 0,
+        unitPrice: 0,
+        notes: "",
+      },
+    ]);
 
-  const handleSave = async () => {
-    if (!validateForm()) {
-      alert("Please fix the validation errors before saving.")
-      return
+  const removeItem = (rowId: string) =>
+    setItems((prev) => prev.filter((r) => r.id !== rowId));
+
+  const updateItem = <K extends keyof ItemRow>(
+    rowId: string,
+    field: K,
+    value: ItemRow[K]
+  ) =>
+    setItems((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r))
+    );
+
+  // MODAL CALLBACKS
+  const onWarehouseSelect = (w: { id: number; name: string }) =>
+    setHeader((h) => ({ ...h, warehouseId: w.id, warehouseName: w.name }));
+
+  const onCustomerSelect = (c: { id: number; name: string }) =>
+    setHeader((h) => ({ ...h, customerId: c.id, customerName: c.name }));
+
+  const onProductSelect = (p: {
+    id: number;
+    productName: string;
+    partNumber?: string | null;
+    unitPrice?: number;
+  }) => {
+    if (!activeItemId) return;
+    updateItem(activeItemId, "productId", p.id);
+    updateItem(activeItemId, "productName", p.productName ?? null);
+    updateItem(activeItemId, "partNumber", p.partNumber ?? null);
+    updateItem(activeItemId, "unitPrice", Number(p.unitPrice ?? 0));
+    setActiveItemId(null);
+    setOpenProductModal(false);
+  };
+
+  // ================== VALIDATION ==================
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!header.transactionDate) errs.transactionDate = "Date is required";
+    if (!header.warehouseId) errs.warehouse = "Warehouse is required";
+    if (!header.customerId) errs.customer = "Customer is required";
+
+    // Jika Draft, validate item detail
+    if (header.status === "Draft") {
+      items.forEach((it, idx) => {
+        if (!it.productId)
+          errs[`item_${idx}_product`] = "Product is required";
+        if (!it.quantity || it.quantity <= 0)
+          errs[`item_${idx}_quantity`] = "Quantity must be > 0";
+      });
     }
 
-    setIsLoading(true)
-    // Mock save operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    setIsEditing(false)
-    alert("Outgoing product updated successfully!")
-  }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
+  // ================== TOTALS ==================
+  const totals = React.useMemo(() => {
+    const totalItems = items.reduce(
+      (s, it) => s + (it.quantity || 0),
+      0
+    );
+    const totalValue = items.reduce(
+      (s, it) => s + (it.quantity || 0) * (it.unitPrice || 0),
+      0
+    );
+    return { totalItems, totalValue };
+  }, [items]);
+
+  // ================== SAVE DRAFT ==================
+  const handleSave = async () => {
+    // kalau belum masuk mode edit → aktifkan dulu
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    if (!validate()) {
+      alert("Periksa validasi sebelum menyimpan.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let payload: any = {};
+
+      // Jika status sudah Done: hanya boleh ubah tanggal + notes
+      if (header.status === "Done") {
+        payload.transactionDate = header.transactionDate;
+        payload.notes = header.notes;
+        payload.status = header.status;
+      } else {
+        // Draft: boleh update semua
+        payload = {
+          warehouseId: header.warehouseId,
+          customerId: header.customerId,
+          transactionDate: header.transactionDate,
+          notes: header.notes,
+          status: header.status,
+          items: items.map((it) => ({
+            productId: it.productId,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            notes: it.notes,
+          })),
+        };
+      }
+
+      const res = await fetch(`/api/outgoing-transactions/${idParam}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        console.error("PUT error", json);
+        throw new Error(json?.error || "Failed to update");
+      }
+
+      alert("Berhasil menyimpan.");
+      setIsEditing(false);
+      router.push(`/outgoing/${idParam}`);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menyimpan transaksi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ================== SUBMIT DONE ==================
+  const handleSubmitDone = async () => {
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    if (header.status !== "Draft") {
+      alert("Hanya transaksi Draft yang bisa disubmit.");
+      return;
+    }
+
+    if (!validate()) {
+      alert("Periksa validasi sebelum submit.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        status: "Done",
+        warehouseId: header.warehouseId,
+        customerId: header.customerId,
+        transactionDate: header.transactionDate,
+        notes: header.notes,
+        items: items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          notes: it.notes,
+        })),
+      };
+
+      const res = await fetch(`/api/outgoing-transactions/${idParam}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        console.error("Submit error", json);
+        throw new Error(json?.error || "Failed to submit");
+      }
+
+      alert("Transaksi berhasil disubmit (Done).");
+      router.push(`/outgoing/${idParam}`);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal submit transaksi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ================== DELETE ==================
   const handleDelete = async () => {
-    setIsLoading(true)
-    // Mock delete operation
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/outgoing")
-  }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/outgoing-transactions/${idParam}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Failed to delete");
+      }
+      alert("Transaksi dihapus.");
+      router.push("/outgoing");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menghapus transaksi.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  const { totalItems, totalValue } = calculateTotals()
+  const isDone = header.status === "Done";
+  const canEditHeader = isEditing; // tapi disable field tertentu kalau Done
+  const canEditItems = isEditing && !isDone;
 
+  // ================== RENDER ==================
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
+      {/* HEADER PAGE */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.back()}
-            className="bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 transition-all duration-300"
-          >
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 text-pink-600" />
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-            Outgoing Product Details
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            Outgoing Transaction #{idParam}
           </h1>
         </div>
+
         <div className="flex items-center space-x-2">
           {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)} className="btn-gradient border-0">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="btn-gradient border-0"
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
           ) : (
             <>
               <Button
                 variant="outline"
                 onClick={() => setIsEditing(false)}
-                className="bg-white/80 hover:bg-white border-pink-200"
+                className="bg-white/80"
               >
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={isLoading} className="btn-gradient border-0">
+
+              <Button
+                onClick={handleSave}
+                disabled={loading}
+                className="btn-gradient border-0"
+              >
                 <Save className="mr-2 h-4 w-4" />
-                {isLoading ? "Saving..." : "Save"}
+                {loading ? "Saving..." : "Save Draft"}
               </Button>
+
+              {header.status === "Draft" && (
+                <Button
+                  onClick={handleSubmitDone}
+                  disabled={loading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {loading ? "Submitting..." : "Submit (Done)"}
+                </Button>
+              )}
             </>
           )}
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0"
+                disabled={deleting}
+                className="bg-gradient-to-r from-red-500 to-red-600 border-0"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -226,17 +448,18 @@ export default function OutgoingProductDetailPage() {
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-white/95 backdrop-blur-sm border-pink-200">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-gray-800">Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-600">
-                  This action cannot be undone. This will permanently delete the outgoing product record and remove all
-                  associated data.
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Deleting this transaction{" "}
+                  {isDone ? "will rollback stock and " : ""}
+                  permanently remove it.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-white hover:bg-gray-50 border-pink-200">Cancel</AlertDialogCancel>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                  className="bg-gradient-to-r from-red-500 to-red-600"
                 >
                   Delete
                 </AlertDialogAction>
@@ -246,310 +469,304 @@ export default function OutgoingProductDetailPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* SUMMARY CARDS */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Items</div>
-          <div className="text-2xl font-bold text-pink-600">{totalItems}</div>
+          <div className="text-2xl font-bold text-pink-600">
+            {totals.totalItems}
+          </div>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Value</div>
-          <div className="text-2xl font-bold text-red-600">${totalValue.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-red-600">
+            ${totals.totalValue.toFixed(2)}
+          </div>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Status</div>
-          <Badge variant={outgoingProduct.submitStatus === "Done" ? "default" : "secondary"} className="mt-1">
-            {outgoingProduct.submitStatus}
+          <Badge
+            variant={isDone ? "default" : "secondary"}
+            className="mt-1"
+          >
+            {header.status}
           </Badge>
         </div>
+
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Date</div>
-          <div className="text-lg font-medium text-gray-800">{outgoingProduct.date}</div>
+          <div className="text-lg font-medium text-gray-800">
+            {header.transactionDate}
+          </div>
         </div>
       </div>
 
-      {/* Details Form */}
+      {/* HEADER FORM */}
       <div className="enhanced-card p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Outgoing Product Information</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Transaction Information
+        </h2>
+
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
+            {/* DATE */}
             <div className="grid gap-2">
-              <Label htmlFor="date" className="text-gray-700 font-medium form-label-accent">
-                Date {isEditing && "*"}
-              </Label>
+              <Label>Date {isEditing && "*"}</Label>
               <Input
-                id="date"
                 type="date"
-                value={outgoingProduct.date}
-                onChange={(e) => setOutgoingProduct({ ...outgoingProduct, date: e.target.value })}
-                className={`gradient-input ${errors.date ? "border-red-500" : ""}`}
-                disabled={!isEditing}
+                value={header.transactionDate}
+                onChange={(e) =>
+                  setHeader((h) => ({
+                    ...h,
+                    transactionDate: e.target.value,
+                  }))
+                }
+                className={errors.transactionDate ? "border-red-500" : ""}
+                disabled={!canEditHeader}
               />
-              {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="source" className="text-gray-700 font-medium form-label-accent">
-                Source {isEditing && "*"}
-              </Label>
-              {isEditing ? (
-                <Select
-                  value={outgoingProduct.source}
-                  onValueChange={(value) => setOutgoingProduct({ ...outgoingProduct, source: value })}
-                >
-                  <SelectTrigger className={`gradient-input ${errors.source ? "border-red-500" : ""}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Warehouse 1" className="hover:bg-pink-50">
-                      Warehouse 1
-                    </SelectItem>
-                    <SelectItem value="Warehouse 2" className="hover:bg-pink-50">
-                      Warehouse 2
-                    </SelectItem>
-                    <SelectItem value="Warehouse 3" className="hover:bg-pink-50">
-                      Warehouse 3
-                    </SelectItem>
-                    <SelectItem value="Main Storage" className="hover:bg-pink-50">
-                      Main Storage
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={outgoingProduct.source} className="gradient-input" disabled />
+              {errors.transactionDate && (
+                <p className="text-red-500 text-sm">
+                  {errors.transactionDate}
+                </p>
               )}
-              {errors.source && <p className="text-red-500 text-sm">{errors.source}</p>}
+            </div>
+
+            {/* WAREHOUSE */}
+            <div className="grid gap-2">
+              <Label>
+                Warehouse{" "}
+                {isEditing && header.status === "Draft" ? "*" : ""}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input value={header.warehouseName} readOnly />
+                <Button
+                  onClick={() =>
+                    isEditing &&
+                    header.status === "Draft" &&
+                    setOpenWarehouseModal(true)
+                  }
+                  disabled={!isEditing || header.status !== "Draft"}
+                >
+                  Select
+                </Button>
+              </div>
+              {errors.warehouse && (
+                <p className="text-red-500 text-sm">
+                  {errors.warehouse}
+                </p>
+              )}
             </div>
           </div>
+
           <div className="space-y-4">
+            {/* CUSTOMER */}
             <div className="grid gap-2">
-              <Label htmlFor="status" className="text-gray-700 font-medium form-label-accent">
-                Status
+              <Label>
+                Customer{" "}
+                {isEditing && header.status === "Draft" ? "*" : ""}
               </Label>
-              {isEditing ? (
-                <Select
-                  value={outgoingProduct.submitStatus}
-                  onValueChange={(value: "Draft" | "Done") =>
-                    setOutgoingProduct({ ...outgoingProduct, submitStatus: value })
+              <div className="flex items-center gap-2">
+                <Input value={header.customerName} readOnly />
+                <Button
+                  onClick={() =>
+                    isEditing &&
+                    header.status === "Draft" &&
+                    setOpenCustomerModal(true)
                   }
+                  disabled={!isEditing || header.status !== "Draft"}
                 >
-                  <SelectTrigger className="gradient-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                    <SelectItem value="Draft" className="hover:bg-pink-50">
-                      Draft
-                    </SelectItem>
-                    <SelectItem value="Done" className="hover:bg-pink-50">
-                      Done
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="p-2">
-                  <Badge variant={outgoingProduct.submitStatus === "Done" ? "default" : "secondary"}>
-                    {outgoingProduct.submitStatus}
-                  </Badge>
-                </div>
+                  Select
+                </Button>
+              </div>
+              {errors.customer && (
+                <p className="text-red-500 text-sm">
+                  {errors.customer}
+                </p>
               )}
             </div>
+
+            {/* NOTES */}
             <div className="grid gap-2">
-              <Label htmlFor="notes" className="text-gray-700 font-medium">
-                Notes
-              </Label>
+              <Label>Notes</Label>
               <Textarea
-                id="notes"
-                value={outgoingProduct.notes}
-                onChange={(e) => setOutgoingProduct({ ...outgoingProduct, notes: e.target.value })}
+                value={header.notes}
+                onChange={(e) =>
+                  setHeader((h) => ({ ...h, notes: e.target.value }))
+                }
                 rows={3}
-                className="gradient-input resize-none"
-                disabled={!isEditing}
+                disabled={!canEditHeader}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Product Items */}
+      {/* ITEMS */}
       <Card className="enhanced-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-gray-800">Product Items</CardTitle>
-            {isEditing && (
-              <Button onClick={addItem} variant="outline" size="sm" className="btn-gradient border-0 bg-transparent">
+          <div className="flex justify-between items-center w-full">
+            <CardTitle>Product Items</CardTitle>
+            {canEditItems && (
+              <Button onClick={addItem}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
               </Button>
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {items.map((item, index) => {
-            const selectedProduct = availableProducts.find((p) => p.name === item.productName)
 
-            return (
-              <div key={item.id} className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-gray-800">Product {index + 1}</h4>
-                  {isEditing && items.length > 1 && (
+        <CardContent className="space-y-4">
+          {items.map((it, idx) => (
+            <div
+              key={it.id}
+              className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Product {idx + 1}</h4>
+                {canEditItems && items.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeItem(it.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* PRODUCT SELECT */}
+                <div className="grid gap-2">
+                  <Label>
+                    Product{" "}
+                    {isEditing && header.status === "Draft" ? "*" : ""}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input value={it.productName ?? ""} readOnly />
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      onClick={() => {
+                        if (canEditItems) {
+                          setActiveItemId(it.id);
+                          setOpenProductModal(true);
+                        }
+                      }}
+                      disabled={!canEditItems}
                     >
-                      <X className="h-4 w-4" />
+                      Select
                     </Button>
+                  </div>
+                  {errors[`item_${idx}_product`] && (
+                    <p className="text-red-500 text-sm">
+                      {errors[`item_${idx}_product`]}
+                    </p>
                   )}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">Product {isEditing && "*"}</Label>
-                    {isEditing ? (
-                      <Select
-                        value={item.productName}
-                        onValueChange={(value) => updateItem(item.id, "productName", value)}
-                      >
-                        <SelectTrigger
-                          className={`gradient-input ${errors[`item_${index}_product`] ? "border-red-500" : ""}`}
-                        >
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                          {availableProducts.map((product) => (
-                            <SelectItem key={product.id} value={product.name} className="hover:bg-pink-50">
-                              <div className="flex flex-col">
-                                <span>
-                                  {product.name} ({product.partNumber})
-                                </span>
-                                <span className="text-xs text-gray-500">Stock: {product.currentStock}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input value={item.productName} className="gradient-input" disabled />
-                    )}
-                    {errors[`item_${index}_product`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_product`]}</p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium">Part Number</Label>
-                    <Input
-                      value={item.partNumber}
-                      className="gradient-input bg-gray-50"
-                      disabled
-                      placeholder="Auto-filled"
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">Quantity {isEditing && "*"}</Label>
-                    <Input
-                      type="number"
-                      value={item.quantity || ""}
-                      onChange={(e) => updateItem(item.id, "quantity", Number.parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      min="1"
-                      max={selectedProduct?.currentStock || 999}
-                      className={`gradient-input ${errors[`item_${index}_quantity`] ? "border-red-500" : ""}`}
-                      disabled={!isEditing}
-                    />
-                    {selectedProduct && isEditing && (
-                      <p className="text-xs text-gray-500">Available: {selectedProduct.currentStock}</p>
-                    )}
-                    {errors[`item_${index}_quantity`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_quantity`]}</p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice || ""}
-                      onChange={(e) => updateItem(item.id, "unitPrice", Number.parseFloat(e.target.value) || 0)}
-                      placeholder="0.00"
-                      className="gradient-input"
-                      disabled={!isEditing}
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label className="text-gray-700 font-medium form-label-accent">
-                      Destination {isEditing && "*"}
-                    </Label>
-                    {isEditing ? (
-                      <Select
-                        value={item.destination}
-                        onValueChange={(value) => updateItem(item.id, "destination", value)}
-                      >
-                        <SelectTrigger
-                          className={`gradient-input ${errors[`item_${index}_destination`] ? "border-red-500" : ""}`}
-                        >
-                          <SelectValue placeholder="Select destination" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white/95 backdrop-blur-sm border-pink-200">
-                          <SelectItem value="Customer A" className="hover:bg-pink-50">
-                            Customer A
-                          </SelectItem>
-                          <SelectItem value="Customer B" className="hover:bg-pink-50">
-                            Customer B
-                          </SelectItem>
-                          <SelectItem value="Customer C" className="hover:bg-pink-50">
-                            Customer C
-                          </SelectItem>
-                          <SelectItem value="Customer 123" className="hover:bg-pink-50">
-                            Customer 123
-                          </SelectItem>
-                          <SelectItem value="Customer 456" className="hover:bg-pink-50">
-                            Customer 456
-                          </SelectItem>
-                          <SelectItem value="Branch Office" className="hover:bg-pink-50">
-                            Branch Office
-                          </SelectItem>
-                          <SelectItem value="Retail Store" className="hover:bg-pink-50">
-                            Retail Store
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input value={item.destination} className="gradient-input" disabled />
-                    )}
-                    {errors[`item_${index}_destination`] && (
-                      <p className="text-red-500 text-sm">{errors[`item_${index}_destination`]}</p>
-                    )}
-                  </div>
+                {/* PART NUMBER */}
+                <div className="grid gap-2">
+                  <Label>Part Number</Label>
+                  <Input value={it.partNumber ?? ""} readOnly />
                 </div>
 
+                {/* QTY */}
                 <div className="grid gap-2">
-                  <Label className="text-gray-700 font-medium">Notes</Label>
+                  <Label>
+                    Quantity{" "}
+                    {isEditing && header.status === "Draft" ? "*" : ""}
+                  </Label>
                   <Input
-                    value={item.notes}
-                    onChange={(e) => updateItem(item.id, "notes", e.target.value)}
-                    placeholder="Optional notes for this product"
-                    className="gradient-input"
-                    disabled={!isEditing}
+                    type="number"
+                    value={it.quantity}
+                    onChange={(e) => {
+                      if (canEditItems) {
+                        updateItem(
+                          it.id,
+                          "quantity",
+                          Number(e.target.value || 0)
+                        );
+                      }
+                    }}
+                    disabled={!canEditItems}
+                  />
+                  {errors[`item_${idx}_quantity`] && (
+                    <p className="text-red-500 text-sm">
+                      {errors[`item_${idx}_quantity`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* UNIT PRICE */}
+                <div className="grid gap-2">
+                  <Label>Unit Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={it.unitPrice}
+                    onChange={(e) => {
+                      if (canEditItems) {
+                        updateItem(
+                          it.id,
+                          "unitPrice",
+                          Number(e.target.value || 0)
+                        );
+                      }
+                    }}
+                    disabled={!canEditItems}
                   />
                 </div>
-
-                {item.quantity > 0 && item.unitPrice > 0 && (
-                  <div className="flex justify-end">
-                    <div className="text-sm text-gray-600">
-                      Subtotal:{" "}
-                      <span className="font-medium text-red-600">${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
               </div>
-            )
-          })}
+
+              {/* NOTES PER ITEM */}
+              <div className="grid gap-2">
+                <Label>Notes</Label>
+                <Input
+                  value={it.notes ?? ""}
+                  onChange={(e) => {
+                    if (canEditItems) {
+                      updateItem(it.id, "notes", e.target.value);
+                    }
+                  }}
+                  disabled={!canEditItems}
+                />
+              </div>
+
+              {/* SUBTOTAL */}
+              <div className="flex justify-end">
+                <div className="text-sm text-gray-600">
+                  Subtotal:{" "}
+                  <span className="font-medium text-red-600">
+                    ${(it.quantity * it.unitPrice).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
+
+      {/* MODALS */}
+      <WarehouseSelectModal
+        open={openWarehouseModal}
+        onClose={() => setOpenWarehouseModal(false)}
+        onSelect={onWarehouseSelect}
+      />
+
+      <CustomerSelectModal
+        open={openCustomerModal}
+        onClose={() => setOpenCustomerModal(false)}
+        onSelect={onCustomerSelect}
+      />
+
+      <ProductSelectModal
+        open={openProductModal}
+        onClose={() => {
+          setOpenProductModal(false);
+          setActiveItemId(null);
+        }}
+        onSelect={onProductSelect}
+      />
     </div>
-  )
+  );
 }

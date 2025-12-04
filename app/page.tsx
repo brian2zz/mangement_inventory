@@ -9,7 +9,7 @@ import type { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DataTable } from "@/components/data-table"
+import { DataTableV2 as DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Package, AlertTriangle, DollarSign, Clock } from "lucide-react"
 
