@@ -1,114 +1,42 @@
-"use client"
-import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { DataTable } from "@/components/data-table"
-import { Badge } from "@/components/ui/badge"
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTableV2 } from "@/components/data-table";
 
-interface OutgoingReport {
-  date: string
-  productName: string
-  category: string
-  partNumber: string
-  source: string
-  destination: string
-  quantityOut: number
-  currentStock: number
-  remarks: string
+interface OutgoingReportRow {
+  id: number;
+  date: string;
+  productName: string;
+  category: string;
+  partNumber: string;
+  source: string;
+  destination: string;
+  quantityOut: number;
+  currentStock: number;
+  remarks: string;
 }
 
-const data: OutgoingReport[] = [
-  {
-    date: "2024-01-17",
-    productName: "Widget A",
-    category: "Electronics",
-    partNumber: "PN001",
-    source: "Warehouse 1",
-    destination: "Customer 123",
-    quantityOut: 25,
-    currentStock: 75,
-    remarks: "Customer order",
-  },
-  {
-    date: "2024-01-19",
-    productName: "Widget B",
-    category: "Mechanical",
-    partNumber: "PN002",
-    source: "Warehouse 2",
-    destination: "Customer 456",
-    quantityOut: 10,
-    currentStock: 40,
-    remarks: "Small order",
-  },
-  {
-    date: "2024-01-20",
-    productName: "Component X",
-    category: "Hardware",
-    partNumber: "PN004",
-    source: "Warehouse 3",
-    destination: "Customer 789",
-    quantityOut: 15,
-    currentStock: 60,
-    remarks: "Rush order",
-  },
-]
-
-const columns: ColumnDef<OutgoingReport>[] = [
+const columns: ColumnDef<OutgoingReportRow>[] = [
   {
     accessorKey: "date",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Date
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Date",
   },
   {
     accessorKey: "productName",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Product Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Product Name",
   },
   {
     accessorKey: "category",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Category
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Category",
   },
   {
     accessorKey: "partNumber",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Part Number
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Part Number",
   },
   {
     accessorKey: "source",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Source
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Source",
   },
   {
     accessorKey: "destination",
@@ -116,41 +44,68 @@ const columns: ColumnDef<OutgoingReport>[] = [
   },
   {
     accessorKey: "quantityOut",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Quantity Out
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const quantity = row.getValue("quantityOut") as number
-      return <Badge variant="destructive">{quantity}</Badge>
-    },
+    header: "Quantity Out",
   },
   {
     accessorKey: "currentStock",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Current Stock
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const stock = row.getValue("currentStock") as number
-      return <Badge variant={stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive"}>{stock}</Badge>
-    },
+    header: "Current Stock",
   },
   {
     accessorKey: "remarks",
     header: "Remarks",
   },
-]
+];
 
 export default function OutgoingProductReportPage() {
+  const [data, setData] = React.useState<OutgoingReportRow[]>([]);
+  const [totalCount, setTotalCount] = React.useState(0);
+
+  const [pageIndex, setPageIndex] = React.useState(0); // 0-based untuk UI
+  const [pageSize, setPageSize] = React.useState(10);
+
+  const [sorting, setSorting] = React.useState<
+    { id: string; desc: boolean }[]
+  >([]);
+  const [search, setSearch] = React.useState("");
+
+  const [loading, setLoading] = React.useState(false);
+
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const sort = sorting[0];
+      const sortField = sort?.id || "date";
+      const sortOrder = sort?.desc ? "desc" : "asc";
+
+      const params = new URLSearchParams();
+      params.set("page", String(pageIndex + 1)); // API pakai 1-based
+      params.set("limit", String(pageSize));
+      params.set("search", search);
+      params.set("sortField", sortField);
+      params.set("sortOrder", sortOrder);
+
+      const res = await fetch(`/api/reports/outgoing?${params.toString()}`);
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to fetch");
+      }
+
+      setData(json.data);
+      setTotalCount(json.totalCount);
+    } catch (error) {
+      console.error("Failed to fetch outgoing report:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [pageIndex, pageSize, sorting, search]);
+
+  // Trigger fetch ketika dependency berubah
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
       <div className="flex items-center justify-between">
@@ -160,8 +115,32 @@ export default function OutgoingProductReportPage() {
       </div>
 
       <div className="enhanced-card p-6">
-        <DataTable columns={columns} data={data} searchPlaceholder="Search outgoing products..." />
+        <DataTableV2
+          columns={columns}
+          data={data}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          loading={loading}
+          searchPlaceholder="Search outgoing products..."
+          haveFilter={false}
+          onRowClick={(row) => {
+            // opsional: misal buka detail
+            console.log("Row clicked:", row);
+          }}
+          onPaginationChange={(newPageIndex, newPageSize) => {
+            setPageIndex(newPageIndex);
+            setPageSize(newPageSize);
+          }}
+          onSortingChange={(newSorting) => {
+            setSorting(newSorting);
+          }}
+          onSearchChange={(value) => {
+            setPageIndex(0); // reset ke halaman pertama kalau search berubah
+            setSearch(value);
+          }}
+        />
       </div>
     </div>
-  )
+  );
 }

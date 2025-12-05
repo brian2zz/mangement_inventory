@@ -1,171 +1,106 @@
-"use client"
-import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { DataTable } from "@/components/data-table"
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTableV2 } from "@/components/data-table";
 
-interface RequestReport {
-  requestedItem: string
-  requestedQuantity: number
-  fulfilledQuantity: number
-  requestDate: string
-  fulfilledDate: string
-  store: string
-  unitPrice: number
-  totalPrice: number
-  remarks: string
-  supplierLocation: string
+interface RequestReportRow {
+  id: number;
+  requestedItem: string;
+  requestedQuantity: number;
+  fulfilledQuantity: number;
+  requestDate: string;
+  fulfilledDate: string;
+  store: string;
+  unitPrice: number;
+  totalPrice: number;
+  remarks: string;
+  supplierLocation: string;
 }
 
-const data: RequestReport[] = [
-  {
-    requestedItem: "Widget A",
-    requestedQuantity: 50,
-    fulfilledQuantity: 50,
-    requestDate: "2024-01-10",
-    fulfilledDate: "2024-01-15",
-    store: "Store A",
-    unitPrice: 25.99,
-    totalPrice: 1299.5,
-    remarks: "Completed on time",
-    supplierLocation: "Warehouse 1",
-  },
-  {
-    requestedItem: "Widget B",
-    requestedQuantity: 30,
-    fulfilledQuantity: 20,
-    requestDate: "2024-01-12",
-    fulfilledDate: "2024-01-16",
-    store: "Store B",
-    unitPrice: 15.5,
-    totalPrice: 465.0,
-    remarks: "Partial fulfillment",
-    supplierLocation: "Warehouse 2",
-  },
-  {
-    requestedItem: "Component X",
-    requestedQuantity: 100,
-    fulfilledQuantity: 0,
-    requestDate: "2024-01-18",
-    fulfilledDate: "",
-    store: "Store C",
-    unitPrice: 8.75,
-    totalPrice: 875.0,
-    remarks: "Pending supplier delivery",
-    supplierLocation: "External Supplier",
-  },
-]
-
-const columns: ColumnDef<RequestReport>[] = [
-  {
-    accessorKey: "requestedItem",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Requested Item
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-  },
-  {
-    accessorKey: "requestedQuantity",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Requested Qty
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-  },
-  {
-    accessorKey: "fulfilledQuantity",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Fulfilled Qty
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-  },
-  {
-    accessorKey: "requestDate",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Request Date
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-  },
-  {
-    accessorKey: "fulfilledDate",
-    header: "Fulfilled Date",
-    cell: ({ row }) => {
-      const date = row.getValue("fulfilledDate") as string
-      return date || "N/A"
-    },
-  },
-  {
-    accessorKey: "store",
-    header: "Store",
-  },
-  {
-    accessorKey: "unitPrice",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Unit Price
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const price = row.getValue("unitPrice") as number
-      return `$${price.toFixed(2)}`
-    },
-  },
-  {
-    accessorKey: "totalPrice",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Total Price
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const price = row.getValue("totalPrice") as number
-      return `$${price.toFixed(2)}`
-    },
-  },
-  {
-    accessorKey: "remarks",
-    header: "Remarks",
-  },
-  {
-    accessorKey: "supplierLocation",
-    header: "Supplier Location",
-  },
-]
+const columns: ColumnDef<RequestReportRow>[] = [
+  { accessorKey: "requestedItem", header: "Requested Item" },
+  { accessorKey: "requestedQuantity", header: "Requested Qty" },
+  { accessorKey: "fulfilledQuantity", header: "Fulfilled Qty" },
+  { accessorKey: "requestDate", header: "Request Date" },
+  { accessorKey: "fulfilledDate", header: "Fulfilled Date" },
+  { accessorKey: "store", header: "Store" },
+  { accessorKey: "unitPrice", header: "Unit Price" },
+  { accessorKey: "totalPrice", header: "Total Price" },
+  { accessorKey: "remarks", header: "Remarks" },
+  { accessorKey: "supplierLocation", header: "Supplier Location" },
+];
 
 export default function RequestReportPage() {
+  const [data, setData] = React.useState<RequestReportRow[]>([]);
+  const [totalCount, setTotalCount] = React.useState(0);
+
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(10);
+
+  const [sorting, setSorting] = React.useState<
+    { id: string; desc: boolean }[]
+  >([]);
+
+  const [search, setSearch] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+
+    const sort = sorting[0];
+    const sortField = sort?.id ?? "requestDate";
+    const sortOrder = sort?.desc ? "desc" : "asc";
+
+    const params = new URLSearchParams();
+    params.set("page", String(pageIndex + 1));
+    params.set("limit", String(pageSize));
+    params.set("search", search);
+    params.set("sortField", sortField);
+    params.set("sortOrder", sortOrder);
+
+    const res = await fetch(`/api/reports/request?${params.toString()}`);
+    const json = await res.json();
+
+    if (json.success) {
+      setData(json.data);
+      setTotalCount(json.totalCount);
+    }
+
+    setLoading(false);
+  }, [pageIndex, pageSize, sorting, search]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-          Request Report
-        </h1>
-      </div>
+      <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+        Request Report
+      </h1>
 
       <div className="enhanced-card p-6">
-        <DataTable columns={columns} data={data} searchPlaceholder="Search requests..." />
+        <DataTableV2
+          columns={columns}
+          data={data}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          loading={loading}
+          searchPlaceholder="Search request items..."
+          haveFilter={false}
+          onPaginationChange={(newPageIndex, newPageSize) => {
+            setPageIndex(newPageIndex);
+            setPageSize(newPageSize);
+          }}
+          onSortingChange={(s) => setSorting(s)}
+          onSearchChange={(value) => {
+            setPageIndex(0);
+            setSearch(value);
+          }}
+        />
       </div>
     </div>
-  )
+  );
 }
