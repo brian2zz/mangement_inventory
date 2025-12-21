@@ -4,6 +4,7 @@ import * as React from "react";
 import { DataTableV2 } from "@/components/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 interface ProductRow {
     id: number;
@@ -33,8 +34,9 @@ export default function ProductSelectModal({ open, onClose, onSelect }: Props) {
     const fetchProducts = React.useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(
-                `/api/products?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`
+            const res = await apiFetch(
+                `/products?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`,
+                { method: "GET" }
             );
             if (!res.ok) throw new Error("Failed to fetch products");
             const json = await res.json();

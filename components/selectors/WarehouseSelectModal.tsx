@@ -4,6 +4,7 @@ import * as React from "react";
 import { DataTableV2 } from "@/components/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 interface Warehouse {
     id: number;
@@ -29,8 +30,9 @@ export default function WarehouseSelectModal({ open, onClose, onSelect }: Props)
     const fetchWarehouses = React.useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(
-                `/api/warehouses?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`
+            const res = await apiFetch(
+                `/warehouses?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`,
+                { method: "GET" }
             );
 
             if (!res.ok) throw new Error("Failed to fetch warehouses");

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 interface Customer {
     id: number;
@@ -38,7 +39,9 @@ export default function CustomerSelectModal({ open, onClose, onSelect }: Props) 
                 sortOrder: "asc",
             });
 
-            const res = await fetch(`/api/customers?${params.toString()}`);
+            const res = await apiFetch(`/customers?${params.toString()}`, {
+                method: "GET",
+            });
             const json = await res.json();
 
             if (json.success) {

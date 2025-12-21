@@ -1,130 +1,131 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-interface UserType {
-  id: number
-  name: string
-  email: string
-  phone: string | null
-  address: string | null
-  role: "admin" | "staff" | "viewer"
-}
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+};
 
-interface AuthContextType {
-  user: UserType | null
-  login: (email: string, password: string, rememberMe: boolean) => Promise<boolean>
-  logout: () => void
-  isLoading: boolean
-  hasPermission: (requiredRole: UserType["role"]) => boolean
-}
+type AuthContextType = {
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string, remember?: boolean) => Promise<boolean>;
+  logout: () => Promise<void>;
+  hasPermission: (role: string) => boolean; // ✅ TAMBAHKAN
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const roleHierarchy: Record<UserType["role"], number> = {
-  admin: 3,
-  staff: 2,
-  viewer: 1,
-}
-
-const publicRoutes = ["/login", "/forgot-password"]
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserType | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isInitialized, setIsInitialized] = useState(false)
-  const router = useRouter()
-  const pathname = usePathname()
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!isInitialized) {
-      const storedUser = localStorage.getItem("user")
-      const sessionExpiry = localStorage.getItem("sessionExpiry")
-
-      if (storedUser && sessionExpiry) {
-        try {
-          const expiryTime = Number.parseInt(sessionExpiry)
-          if (Date.now() < expiryTime) {
-            setUser(JSON.parse(storedUser))
-          } else {
-            localStorage.removeItem("user")
-            localStorage.removeItem("sessionExpiry")
-          }
-        } catch {
-          localStorage.removeItem("user")
-          localStorage.removeItem("sessionExpiry")
-        }
-      }
-
-      setIsInitialized(true)
-      setIsLoading(false)
-    }
-  }, [isInitialized])
-
-  useEffect(() => {
-    if (isInitialized && !isLoading) {
-      if (!user && !publicRoutes.includes(pathname)) {
-        router.push("/login")
-      } else if (user && pathname === "/login") {
-        router.push("/")
-      }
-    }
-  }, [user, pathname, isLoading, isInitialized, router])
-
-  const login = async (email: string, password: string, rememberMe: boolean): Promise<boolean> => {
-    setIsLoading(true)
-
+  // 🔐 LOGIN
+  const login = async (email: string, password: string, remember = false) => {
+    setIsLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API_URL}/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
-      if (!res.ok) {
-        setIsLoading(false)
-        return false
-      }
+      if (!res.ok) return false;
 
-      const data = await res.json()
-      setUser(data.user)
+      const data = await res.json();
 
-      const expiryTime = Date.now() + (rememberMe ? 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000)
-      localStorage.setItem("user", JSON.stringify(data.user))
-      localStorage.setItem("sessionExpiry", expiryTime.toString())
+      // simpan token
+      localStorage.setItem("token", data.token);
 
-      setIsLoading(false)
-      return true
-    } catch (error) {
-      console.error(error)
-      setIsLoading(false)
-      return false
+      setUser(data.user);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem("user")
-    localStorage.removeItem("sessionExpiry")
-    router.push("/login")
-  }
+  // 🔓 LOGOUT
+  const logout = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      await fetch(`${API_URL}/logout`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+    }
 
-  const hasPermission = (requiredRole: UserType["role"]): boolean => {
-    if (!user) return false
-    return roleHierarchy[user.role] >= roleHierarchy[requiredRole]
-  }
+    localStorage.removeItem("token");
+    setUser(null);
+  };
+
+  const hasPermission = (role: string) => {
+    if (!user) return false;
+
+    // admin bisa akses semua
+    if (user.role === "admin") return true;
+
+    // staff bisa akses staff + viewer
+    if (user.role === "staff") {
+      return role === "staff" || role === "viewer";
+    }
+
+    // viewer hanya viewer
+    if (user.role === "viewer") {
+      return role === "viewer";
+    }
+
+    return false;
+  };
+
+  // 🔁 AUTO LOGIN (refresh page)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    fetch(`${API_URL}/me`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((user) => {
+        if (user) setUser(user);
+        else localStorage.removeItem("token");
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        setUser(null);
+      })
+      .finally(() => setIsLoading(false)); // ⬅️ PENTING
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, hasPermission }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error("useAuth must be used within an AuthProvider")
-  return context
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }

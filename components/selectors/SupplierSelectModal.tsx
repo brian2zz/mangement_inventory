@@ -4,6 +4,7 @@ import * as React from "react";
 import { DataTableV2 } from "@/components/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 interface Supplier {
     id: number;
@@ -30,8 +31,10 @@ export default function SupplierSelectModal({ open, onClose, onSelect }: Props) 
     const fetchSuppliers = React.useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(
-                `/api/suppliers?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`
+            const res = await apiFetch(
+                `/suppliers?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(search)}`, {
+                method: "GET",
+            }
             );
             if (!res.ok) throw new Error("Failed to fetch suppliers");
             const json = await res.json();

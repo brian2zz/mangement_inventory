@@ -121,19 +121,22 @@ export function AppSidebar() {
       <SidebarContent className="bg-transparent">
         {/* Main Menu */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/90 font-semibold text-sm tracking-wide">Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
+            Main Menu
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.url}
-                    className="text-white/90 hover:bg-white/10 hover:text-white transition-all duration-300 rounded-lg data-[active=true]:bg-white/20 data-[active=true]:text-white"
+                    className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
                   >
                     <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -144,22 +147,23 @@ export function AppSidebar() {
 
         {/* Transactions Menu */}
         {filteredTransactionItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-white/90 font-semibold text-sm tracking-wide">
+          <SidebarGroup className="mt-6">
+            <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
               Transactions
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="space-y-1">
                 {filteredTransactionItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === item.url}
-                      className="text-white/90 hover:bg-white/10 hover:text-white transition-all duration-300 rounded-lg data-[active=true]:bg-white/20 data-[active=true]:text-white"
+                      className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
                     >
                       <Link href={item.url}>
-                        <item.icon className="w-4 h-4" />
-                        <span>{item.title}</span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                        <span className="font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -170,20 +174,23 @@ export function AppSidebar() {
         )}
 
         {/* Reports Menu */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-white/90 font-semibold text-sm tracking-wide">Reports</SidebarGroupLabel>
+        <SidebarGroup className="mt-6">
+          <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
+            Reports
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {reportItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.url}
-                    className="text-white/90 hover:bg-white/10 hover:text-white transition-all duration-300 rounded-lg data-[active=true]:bg-white/20 data-[active=true]:text-white"
+                    className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
                   >
                     <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -194,17 +201,17 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* User Profile & Logout */}
-      <SidebarFooter className="bg-transparent border-t border-white/10">
+      <SidebarFooter className="bg-transparent border-t border-white/10 mt-auto">
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="px-2 py-3 text-white/90">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4" />
+            <div className="px-3 py-4 text-white/90">
+              <div className="flex items-center space-x-3 bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
+                <div className="w-10 h-10 bg-gradient-to-br from-white/30 to-white/10 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/20">
+                  <User className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{user?.name}</div>
-                  <div className="text-white/70 text-xs capitalize">{user?.role}</div>
+                  <div className="font-semibold text-sm truncate text-white">{user?.name}</div>
+                  <div className="text-white/60 text-xs capitalize font-medium">{user?.role}</div>
                 </div>
               </div>
             </div>
@@ -212,10 +219,11 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={logout}
-              className="text-white/90 hover:bg-white/10 hover:text-white transition-all duration-300 rounded-lg w-full"
+              className="group text-white/80 hover:bg-red-500/20 hover:text-white transition-all duration-300 rounded-xl w-full mx-2 px-3 py-2.5 border border-white/10 hover:border-red-400/30 relative overflow-hidden"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+              <LogOut className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 relative z-10" />
+              <span className="font-medium relative z-10">Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
