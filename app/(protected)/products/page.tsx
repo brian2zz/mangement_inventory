@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { DataTableV2 as DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { ImportModal } from "./import/import-modal"
+import { apiFetch } from "@/lib/api"
+import { FieldOption, FilterBuilder } from "@/components/filters/FilterBuilder"
 
 // ===================== INTERFACE =====================
 interface Product {
@@ -79,6 +81,53 @@ const columns: ColumnDef<Product>[] = [
   },
 ]
 
+export const productFilterFields: FieldOption[] = [
+  {
+    name: "name",
+    label: "Nama Produk",
+    type: "string",
+    valueType: "text",
+  },
+  {
+    name: "category_id",
+    label: "Kategori",
+    type: "relation",
+    relationConfig: {
+      fetchUrl: "/categories",
+      labelKey: "categoryName",
+      valueKey: "id",
+    },
+  },
+  {
+    name: "stock",
+    label: "Stok",
+    type: "number",
+    valueType: "number",
+  },
+  {
+    name: "unit_price",
+    label: "Harga Satuan",
+    type: "number",
+    valueType: "number",
+  },
+  {
+    name: "status",
+    label: "Status",
+    type: "string",
+    valueType: "dropdown",
+    options: [
+      { label: "Aktif", value: "active" },
+      { label: "Nonaktif", value: "inactive" },
+    ],
+  },
+  {
+    name: "created_at",
+    label: "Tanggal Dibuat",
+    type: "date",
+    valueType: "date",
+  },
+];
+
 // ===================== MAIN COMPONENT =====================
 export default function ProductsPage() {
   const router = useRouter()
@@ -88,6 +137,7 @@ export default function ProductsPage() {
   const [pageIndex, setPageIndex] = React.useState(0)
   const [pageSize, setPageSize] = React.useState(10)
   const [search, setSearch] = React.useState("")
+  const [filters, setFilters] = React.useState<any[]>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [loading, setLoading] = React.useState(false)
   const [openImport, setOpenImport] = React.useState(false)
@@ -97,48 +147,33 @@ export default function ProductsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const sortField = sorting[0]?.id ?? "createdAt"
+      const sortField = sorting[0]?.id ?? "created_at"
       const sortOrder = sorting[0]?.desc ? "desc" : "asc"
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(
-          search
-        )}&sortField=${sortField}&sortOrder=${sortOrder}`, {
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
+      const params = new URLSearchParams({
+        page: String(pageIndex + 1),
+        limit: String(pageSize),
+        search,
+        sortField,
+        sortOrder,
+      })
+
+      // 🔥 INI YANG KURANG
+      if (filters.length > 0) {
+        params.append("filters", JSON.stringify(filters))
       }
-      )
+
+      const res = await apiFetch(`/products?${params.toString()}`, {
+        method: "GET",
+      })
 
       if (!res.ok) throw new Error("Failed to fetch products")
+
       const json = await res.json()
       setData(json.data)
       setTotalCount(json.totalCount)
     } catch (err) {
       console.error("Failed to load products:", err)
-      // fallback dummy data
-      setData([
-        {
-          id: 1,
-          cardNumber: "C001",
-          productName: "Widget A",
-          category: "Electronics",
-          partNumber: "PN001",
-          stock: 75,
-          status: "active",
-        },
-        {
-          id: 2,
-          cardNumber: "C002",
-          productName: "Widget B",
-          category: "Mechanical",
-          partNumber: "PN002",
-          stock: 40,
-          status: "active",
-        },
-      ])
-      setTotalCount(2)
     } finally {
       setLoading(false)
     }
@@ -146,7 +181,7 @@ export default function ProductsPage() {
 
   React.useEffect(() => {
     fetchData()
-  }, [pageIndex, pageSize, search, sorting])
+  }, [pageIndex, pageSize, search, sorting, filters])
 
   // ===================== HANDLE ROW CLICK =====================
   const handleRowClick = (product: Product) => {
@@ -184,6 +219,17 @@ export default function ProductsPage() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           loading={loading}
+          haveFilter
+          filterComponent={
+            <FilterBuilder
+              fields={productFilterFields}
+              value={filters}
+              onApply={(val) => {
+                setFilters(val);
+                setPageIndex(0);
+              }}
+            />
+          }
           searchPlaceholder="Search products..."
           onSearchChange={(val) => {
             setPageIndex(0)

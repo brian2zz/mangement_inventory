@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { ArrowLeft, Save, Trash2, Edit } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,41 +27,16 @@ import { apiFetch } from "@/lib/api";
 // ----------------------
 // MOCK PRODUCT DATA
 // ----------------------
-interface Product {
-  id: string;
-  productName: string;
-  partNumber: string;
-  stock: number;
-  unitPrice: number;
-  supplier: string;
-}
 
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    productName: "Widget A",
-    partNumber: "PN001",
-    stock: 75,
-    unitPrice: 25.99,
-    supplier: "Supplier ABC",
-  },
-  {
-    id: "2",
-    productName: "Widget C",
-    partNumber: "PN003",
-    stock: 200,
-    unitPrice: 18.5,
-    supplier: "Supplier DEF",
-  },
-  {
-    id: "3",
-    productName: "Electronic Component E1",
-    partNumber: "PN005",
-    stock: 150,
-    unitPrice: 12.75,
-    supplier: "Supplier ABC",
-  },
-];
+interface Product {
+  id: number
+  cardNumber: string | null
+  productName: string
+  category: string
+  partNumber: string | null
+  stock: number
+  status?: string
+}
 
 const productColumns: ColumnDef<Product>[] = [
   {
@@ -106,6 +81,13 @@ export default function CategoryDetailPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [pageIndex, setPageIndex] = React.useState(0)
+  const [pageSize, setPageSize] = React.useState(10)
+  const [search, setSearch] = React.useState("")
+  const [data, setData] = React.useState<Product[]>([])
+  const [totalCount, setTotalCount] = React.useState(0)
+  const [isLoadingProduct, setIsLoadingProduct] = React.useState(false);
 
   // ✅ category diambil dari backend untuk "Category Information"
   const [category, setCategory] = React.useState({
@@ -150,9 +132,68 @@ export default function CategoryDetailPage() {
     }
   };
 
+  const fetchProductData = async () => {
+    setIsLoadingProduct(true);
+    // Implementasi fetch produk berdasarkan kategori jika diperlukan
+    try {
+      const sortField = sorting[0]?.id ?? "createdAt"
+      const sortOrder = sorting[0]?.desc ? "desc" : "asc"
+      const res = await apiFetch(
+        `/products?page=${pageIndex + 1}&limit=${pageSize}&search=${encodeURIComponent(
+          search
+        )}&sortField=${sortField}&sortOrder=${sortOrder}&filters=[
+            {"field":"category_id","operator":"=","value":${params.id}}
+          ]`, {
+        method: "GET",
+      }
+      )
+
+      if (!res.ok) throw new Error("Failed to fetch products")
+      const json = await res.json()
+      setData(json.data)
+      setTotalCount(json.totalCount)
+    } catch (err) {
+      console.error("Failed to load products:", err)
+      // fallback dummy data
+      setData([
+        {
+          id: 1,
+          cardNumber: "C001",
+          productName: "Widget A",
+          category: "Electronics",
+          partNumber: "PN001",
+          stock: 75,
+          status: "active",
+        },
+        {
+          id: 2,
+          cardNumber: "C002",
+          productName: "Widget B",
+          category: "Mechanical",
+          partNumber: "PN002",
+          stock: 40,
+          status: "active",
+        },
+      ])
+      setTotalCount(2)
+    } finally {
+      setIsLoadingProduct(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchData();
   }, [params.id]);
+
+  React.useEffect(() => {
+    fetchProductData();
+  }, [
+    params.id,
+    pageIndex,
+    pageSize,
+    search,
+    sorting,
+  ]);
 
   // ==============================
   // 💾 Handle save (PUT)
@@ -357,7 +398,25 @@ export default function CategoryDetailPage() {
       {/* Products (dummy) */}
       <div className="enhanced-card p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Products in this Category</h2>
-        <DataTable columns={productColumns} data={mockProducts} searchPlaceholder="Search products..." />
+        <DataTable
+          columns={productColumns}
+          data={data}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          loading={isLoadingProduct}
+          searchPlaceholder="Search products..."
+          onSearchChange={(val) => {
+            setPageIndex(0)
+            setSearch(val)
+          }}
+          onPaginationChange={(newPage, newSize) => {
+            setPageIndex(newPage)
+            setPageSize(newSize)
+          }}
+          onSortingChange={setSorting}
+        />
+        {/* <DataTable columns={productColumns} data={mockProducts} searchPlaceholder="Search products..." /> */}
       </div>
     </div>
   );

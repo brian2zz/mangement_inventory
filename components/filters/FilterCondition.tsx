@@ -1,9 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api";
 
+// ==========================
+// TYPES
+// ==========================
 export interface FilterConditionValue {
     field: string;
     operator: string;
@@ -14,7 +25,11 @@ interface FieldOption {
     name: string;
     label: string;
     type: "string" | "number" | "relation" | "date" | "boolean";
-    relationData?: { label: string; value: string | number }[];
+    relationConfig?: {
+        fetchUrl: string;
+        labelKey: string;
+        valueKey: string;
+    };
 }
 
 interface Props {
@@ -25,11 +40,64 @@ interface Props {
     onRemove: () => void;
 }
 
-export function FilterCondition({ index, value, fields, onChange, onRemove }: Props) {
+// ==========================
+// COMPONENT
+// ==========================
+export function FilterCondition({
+    index,
+    value,
+    fields,
+    onChange,
+    onRemove,
+}: Props) {
     const selectedField = fields.find((f) => f.name === value.field);
 
     // ==========================
-    // OPERATOR LIST PER TIPE
+    // RELATION STATE
+    // ==========================
+    const [relationOptions, setRelationOptions] = useState<
+        { label: string; value: string | number }[]
+    >([]);
+    const [loadingRelation, setLoadingRelation] = useState(false);
+
+    // ==========================
+    // FETCH RELATION DATA
+    // ==========================
+    useEffect(() => {
+        if (selectedField?.type !== "relation") return;
+        if (!selectedField.relationConfig) return;
+
+        let isMounted = true;
+        setLoadingRelation(true);
+
+        apiFetch(selectedField.relationConfig.fetchUrl)
+            .then(async (res) => {
+                const json = await res.json();
+                const data = json.data ?? [];
+
+                if (!isMounted) return;
+
+                setRelationOptions(
+                    data.map((item: any) => ({
+                        label: item[selectedField.relationConfig!.labelKey],
+                        value: item[selectedField.relationConfig!.valueKey],
+                    }))
+                );
+            })
+            .catch(() => {
+                if (isMounted) setRelationOptions([]);
+            })
+            .finally(() => {
+                if (isMounted) setLoadingRelation(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedField]);
+
+    // ==========================
+    // OPERATOR PER TYPE
     // ==========================
     const getOperators = () => {
         switch (selectedField?.type) {
@@ -53,7 +121,7 @@ export function FilterCondition({ index, value, fields, onChange, onRemove }: Pr
     };
 
     // ==========================
-    // DYNAMIC VALUE INPUT
+    // VALUE INPUT
     // ==========================
     const renderValueInput = () => {
         if (!selectedField) return null;
@@ -64,12 +132,17 @@ export function FilterCondition({ index, value, fields, onChange, onRemove }: Pr
                     <Select
                         value={value.value?.toString() ?? ""}
                         onValueChange={(v) => handleChange("value", v)}
+                        disabled={loadingRelation}
                     >
                         <SelectTrigger>
-                            <SelectValue placeholder="Pilih nilai" />
+                            <SelectValue
+                                placeholder={
+                                    loadingRelation ? "Memuat data..." : `Pilih ${selectedField.label}`
+                                }
+                            />
                         </SelectTrigger>
                         <SelectContent>
-                            {selectedField.relationData?.map((opt) => (
+                            {relationOptions.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value.toString()}>
                                     {opt.label}
                                 </SelectItem>
@@ -124,15 +197,37 @@ export function FilterCondition({ index, value, fields, onChange, onRemove }: Pr
         }
     };
 
+    // ==========================
+    // RENDER
+    // ==========================
     return (
         <div className="grid grid-cols-12 gap-2 items-center">
             {/* FIELD */}
             <div className="col-span-4">
                 <Select
                     value={value.field}
-                    onValueChange={(v) =>
-                        onChange({ field: v, operator: "", value: "" })
-                    }
+                    onValueChange={(v) => {
+                        const field = fields.find((f) => f.name === v);
+
+                        const defaultOperatorMap: Record<string, string[]> = {
+                            number: ["=", "!=", ">", "<", ">=", "<="],
+                            string: ["contains", "not contains", "startsWith", "endsWith", "="],
+                            relation: ["="],
+                            boolean: ["="],
+                            date: ["=", "!=", ">", "<", ">=", "<="],
+                        };
+
+                        const defaultOperator =
+                            field && defaultOperatorMap[field.type]
+                                ? defaultOperatorMap[field.type][0]
+                                : "";
+
+                        onChange({
+                            field: v,
+                            operator: defaultOperator,
+                            value: "",
+                        });
+                    }}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="Pilih Field" />
@@ -168,13 +263,14 @@ export function FilterCondition({ index, value, fields, onChange, onRemove }: Pr
             </div>
 
             {/* VALUE */}
-            <div className="col-span-4">
-                {renderValueInput()}
-            </div>
+            <div className="col-span-4">{renderValueInput()}</div>
 
             {/* REMOVE */}
             <div className="col-span-1 text-right">
-                <button onClick={onRemove} className="text-red-500 hover:text-red-700">
+                <button
+                    onClick={onRemove}
+                    className="text-red-500 hover:text-red-700"
+                >
                     <X size={16} />
                 </button>
             </div>
