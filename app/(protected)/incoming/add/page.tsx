@@ -224,7 +224,7 @@ export default function AddIncomingProductPage() {
         </div>
         <div className="enhanced-card p-4">
           <div>Total Value</div>
-          <div className="text-2xl font-bold text-green-600">${totalValue.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-green-600">{totalValue.toFixed(2)}</div>
         </div>
         <div className="enhanced-card p-4">
           <div>Status</div>

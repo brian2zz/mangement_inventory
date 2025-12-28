@@ -216,7 +216,7 @@ export default function AddOutgoingProductPage() {
         </div>
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Value</div>
-          <div className="text-2xl font-bold text-red-600">${totalValue.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-red-600">{totalValue.toFixed(2)}</div>
         </div>
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Status</div>
@@ -348,7 +348,7 @@ export default function AddOutgoingProductPage() {
               {/* subtotal */}
               <div className="flex justify-end">
                 <div className="text-sm text-gray-600">
-                  Subtotal: <span className="font-medium text-red-600">${((item.quantity || 0) * (item.unitPrice || 0)).toFixed(2)}</span>
+                  Subtotal: <span className="font-medium text-red-600">{((item.quantity || 0) * (item.unitPrice || 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>

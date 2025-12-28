@@ -1,8 +1,8 @@
-// File: H:\project code\inventory-management-system\app\(protected)\suppliers\[id]\page.tsx
-import * as entry from '../../../../../../app/(protected)/suppliers/[id]/page.js'
+// File: H:\project code\mangement_inventory\app\(protected)\suppliers\[id]\page.tsx
+import * as entry from '../../../../../../app/(protected)/suppliers/detail.jsx'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
-type TEntry = typeof import('../../../../../../app/(protected)/suppliers/[id]/page.js')
+type TEntry = typeof import('../../../../../../app/(protected)/suppliers/detail.jsx')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
   ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
@@ -20,13 +20,13 @@ checkFields<Diff<{
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
   runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   maxDuration?: number
-  
+
   metadata?: any
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
   experimental_ppr?: boolean
-  
+
 }, TEntry, ''>>()
 
 
@@ -75,7 +75,7 @@ type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G exten
 
 
 
-function checkFields<_ extends { [k in keyof any]: never }>() {}
+function checkFields<_ extends { [k in keyof any]: never }>() { }
 
 // https://github.com/sindresorhus/type-fest
 type Numeric = number | bigint

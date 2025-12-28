@@ -124,12 +124,12 @@ export default function AddProductRequestPage() {
 
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Unit Price</div>
-          <div className="text-2xl font-bold text-purple-600">${formData.unitPrice.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-purple-600">{formData.unitPrice.toFixed(2)}</div>
         </div>
 
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Price</div>
-          <div className="text-2xl font-bold text-green-600">${totalPrice.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-green-600">{totalPrice.toFixed(2)}</div>
         </div>
 
         <div className="enhanced-card p-4">

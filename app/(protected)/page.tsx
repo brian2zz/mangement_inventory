@@ -160,7 +160,9 @@ export default function Dashboard() {
 
   const [sorting, setSorting] = React.useState<
     { id: string; desc: boolean }[]
-  >([]);
+  >([
+    { id: "date", desc: true } // ⬅️ DEFAULT DESC
+  ]);
 
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);

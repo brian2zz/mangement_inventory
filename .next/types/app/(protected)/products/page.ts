@@ -1,4 +1,4 @@
-// File: H:\project code\inventory-management-system\app\(protected)\products\page.tsx
+// File: H:\project code\mangement_inventory\app\(protected)\products\page.tsx
 import * as entry from '../../../../../app/(protected)/products/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
