@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  UserDetailPage
 }
 
 export default nextConfig
