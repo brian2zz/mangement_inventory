@@ -11,8 +11,9 @@ import { useAuth } from "@/components/auth-provider"
 const publicRoutes = ["/login", "/forgot-password"]
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
   const { user, isLoading } = useAuth()
+  const pathname = usePathname()
+  const cleanPath = pathname.replace(/\/$/, "")
 
   // Show loading state
   if (isLoading) {
@@ -29,7 +30,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   }
 
   // If it's a public route (login, forgot password), don't show sidebar
-  if (publicRoutes.includes(pathname)) {
+  if (publicRoutes.includes(cleanPath)) {
     return <>{children}</>
   }
 

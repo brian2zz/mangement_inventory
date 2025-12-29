@@ -1,7 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 
+/* =======================
+   TYPES
+======================= */
 type User = {
   id: number;
   name: string;
@@ -12,120 +21,181 @@ type User = {
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+    remember?: boolean
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
-  hasPermission: (role: string) => boolean; // ✅ TAMBAHKAN
+  hasPermission: (role: string) => boolean;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+/* =======================
+   CONTEXT
+======================= */
+const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+/* =======================
+   API URL HELPER
+======================= */
+const getApiUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL;
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+  if (!url) {
+    console.error("❌ NEXT_PUBLIC_API_URL is NOT defined");
+    return null;
+  }
+
+  return url.replace(/\/$/, "");
+};
+
+/* =======================
+   PROVIDER
+======================= */
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔐 LOGIN
-  const login = async (email: string, password: string, remember = false) => {
+  /* =======================
+     LOGIN
+  ======================= */
+  const login = async (
+    email: string,
+    password: string,
+    remember = false
+  ): Promise<boolean> => {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) return false;
+
     setIsLoading(true);
+
     try {
-      const res = await fetch(`${API_URL}/login`, {
+      const res = await fetch(`${apiUrl}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) return false;
+      if (!res.ok) {
+        console.error("❌ Login failed:", res.status);
+        return false;
+      }
 
       const data = await res.json();
 
-      // simpan token
-      localStorage.setItem("token", data.token);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", data.token);
+      }
 
       setUser(data.user);
       return true;
-    } catch {
+    } catch (err) {
+      console.error("❌ Login error:", err);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 🔓 LOGOUT
+  /* =======================
+     LOGOUT
+  ======================= */
   const logout = async () => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      await fetch(`${API_URL}/logout`, {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-    }
+    const apiUrl = getApiUrl();
+    if (!apiUrl || typeof window === "undefined") return;
 
-    localStorage.removeItem("token");
-    setUser(null);
+    try {
+      const token = localStorage.getItem("token");
+
+      if (token) {
+        await fetch(`${apiUrl}/logout`, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("❌ Logout error:", err);
+    } finally {
+      localStorage.removeItem("token");
+      setUser(null);
+    }
   };
 
-  const hasPermission = (role: string) => {
-    if (!user) return false;
-
-    // admin bisa akses semua
-    if (user.role === "admin") return true;
-
-    // staff bisa akses staff + viewer
-    if (user.role === "staff") {
-      return role === "staff" || role === "viewer";
-    }
-
-    // viewer hanya viewer
-    if (user.role === "viewer") {
-      return role === "viewer";
-    }
-
-    return false;
-  };
-
-  // 🔁 AUTO LOGIN (refresh page)
+  /* =======================
+     CHECK AUTH ON LOAD
+  ======================= */
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    if (typeof window === "undefined") return;
 
+    const apiUrl = getApiUrl();
+    if (!apiUrl) {
+      setIsLoading(false);
+      return;
+    }
+
+    const token = localStorage.getItem("token");
     if (!token) {
       setIsLoading(false);
       return;
     }
 
-    fetch(`${API_URL}/me`, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((user) => {
-        if (user) setUser(user);
-        else localStorage.removeItem("token");
-      })
-      .catch(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${apiUrl}/me`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Unauthorized");
+
+        const userData = await res.json();
+        setUser(userData);
+      } catch (err) {
+        console.error("❌ Auth check failed:", err);
         localStorage.removeItem("token");
-        setUser(null);
-      })
-      .finally(() => setIsLoading(false)); // ⬅️ PENTING
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
 
+  /* =======================
+     PERMISSION
+  ======================= */
+  const hasPermission = (role: string) => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    if (user.role === "staff") return role !== "admin";
+    return role === "viewer";
+  };
+
+  /* =======================
+     PROVIDER RENDER
+  ======================= */
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, logout, hasPermission }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
+/* =======================
+   HOOK
+======================= */
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }
