@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
 import React, {
   createContext,
   useContext,
@@ -70,12 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${apiUrl}/login`, {
+      await apiFetch("/sanctum/csrf-cookie");
+      const res = await apiFetch("/api/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         body: JSON.stringify({ email, password }),
       });
 
@@ -108,17 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!apiUrl || typeof window === "undefined") return;
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (token) {
-        await fetch(`${apiUrl}/logout`, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
+      await apiFetch(`${apiUrl}/logout`, { method: "POST" });
     } catch (err) {
       console.error("❌ Logout error:", err);
     } finally {
@@ -159,12 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const res = await fetch(`${apiUrl}/me`, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await apiFetch(`${apiUrl}/me`, { method: "GET" });
 
         // 🔴 HANDLE 401 DENGAN BENAR
         if (res.status === 401) {
