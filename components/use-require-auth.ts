@@ -9,13 +9,10 @@ export function useRequireAuth() {
     const router = useRouter();
 
     useEffect(() => {
-        // ⛔ MASIH CEK LOGIN → JANGAN APA-APA
-        if (isLoading) return;
-
-        if (!user) {
+        if (!isLoading && !user) {
             router.replace("/login");
         }
-    }, [user, isLoading, router]);
+    }, [isLoading, user, router]);
 
     return { user, isLoading };
 }

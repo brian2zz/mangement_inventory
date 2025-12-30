@@ -130,8 +130,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* =======================
      CHECK AUTH ON LOAD
   ======================= */
+  const isPublicPage = () => {
+    if (typeof window === "undefined") return true;
+    return ["/login", "/forgot-password"].includes(
+      window.location.pathname.replace(/\/$/, "")
+    );
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (isPublicPage()) {
+      setIsLoading(false);
+      return;
+    }
 
     const apiUrl = getApiUrl();
     if (!apiUrl) {
@@ -154,7 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        if (!res.ok) throw new Error("Unauthorized");
+        // 🔴 HANDLE 401 DENGAN BENAR
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          return;
+        }
+
+        if (!res.ok) throw new Error("Auth failed");
 
         const userData = await res.json();
         setUser(userData);

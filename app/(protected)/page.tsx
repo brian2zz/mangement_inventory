@@ -17,11 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-
-// pastikan path ini sesuai file DataTableV2 kamu
 import { DataTableV2 } from "@/components/data-table";
 import { useRequireAuth } from "@/components/use-require-auth";
 
+/* =======================
+   TYPES
+======================= */
 interface DashboardRow {
   id: string;
   date: string;
@@ -35,6 +36,9 @@ interface DashboardRow {
   remarks: string;
 }
 
+/* =======================
+   COLUMNS (TIDAK DIUBAH)
+======================= */
 const columns: ColumnDef<DashboardRow>[] = [
   {
     accessorKey: "date",
@@ -73,10 +77,7 @@ const columns: ColumnDef<DashboardRow>[] = [
       </Button>
     ),
   },
-  {
-    accessorKey: "source",
-    header: "Source",
-  },
+  { accessorKey: "source", header: "Source" },
   {
     accessorKey: "stockIn",
     header: ({ column }) => (
@@ -88,14 +89,11 @@ const columns: ColumnDef<DashboardRow>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => {
-      const stockIn = row.getValue("stockIn") as number;
-      return (
-        <Badge variant={stockIn > 0 ? "default" : "secondary"}>
-          {stockIn}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => (
+      <Badge variant={(row.getValue("stockIn") as number) > 0 ? "default" : "secondary"}>
+        {row.getValue("stockIn")}
+      </Badge>
+    ),
   },
   {
     accessorKey: "stockOut",
@@ -108,19 +106,13 @@ const columns: ColumnDef<DashboardRow>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => {
-      const stockOut = row.getValue("stockOut") as number;
-      return (
-        <Badge variant={stockOut > 0 ? "destructive" : "secondary"}>
-          {stockOut}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => (
+      <Badge variant={(row.getValue("stockOut") as number) > 0 ? "destructive" : "secondary"}>
+        {row.getValue("stockOut")}
+      </Badge>
+    ),
   },
-  {
-    accessorKey: "destination",
-    header: "Destination",
-  },
+  { accessorKey: "destination", header: "Destination" },
   {
     accessorKey: "stock",
     header: ({ column }) => (
@@ -136,34 +128,29 @@ const columns: ColumnDef<DashboardRow>[] = [
       const stock = row.getValue("stock") as number;
       const variant =
         stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive";
-
       return <Badge variant={variant}>{stock}</Badge>;
     },
   },
-  {
-    accessorKey: "remarks",
-    header: "Remarks",
-  },
+  { accessorKey: "remarks", header: "Remarks" },
 ];
 
+/* =======================
+   COMPONENT
+======================= */
 export default function Dashboard() {
+  /* 🔴 AUTH WAJIB DI ATAS */
+  const { user, isLoading } = useRequireAuth();
+
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), 0, 1), // awal tahun
-    to: new Date(), // hari ini
+    from: new Date(new Date().getFullYear(), 0, 1),
+    to: new Date(),
   });
 
   const [data, setData] = React.useState<DashboardRow[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
-
-  const [pageIndex, setPageIndex] = React.useState(0); // 0-based untuk UI
+  const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
-
-  const [sorting, setSorting] = React.useState<
-    { id: string; desc: boolean }[]
-  >([
-    { id: "date", desc: true } // ⬅️ DEFAULT DESC
-  ]);
-
+  const [sorting, setSorting] = React.useState([{ id: "date", desc: true }]);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
@@ -174,53 +161,72 @@ export default function Dashboard() {
     pendingRequests: 0,
   });
 
+  /* =======================
+     FETCH DATA (FIXED)
+  ======================= */
   const fetchData = React.useCallback(async () => {
+    if (!user) return;
     if (!dateRange?.from || !dateRange.to) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
     setLoading(true);
 
-    const sort = sorting[0];
-    const sortField = sort?.id ?? "date";
-    const sortOrder = sort?.desc ? "desc" : "asc";
-    const token = localStorage.getItem("token");
+    try {
+      const sort = sorting[0];
+      const params = new URLSearchParams({
+        page: String(pageIndex + 1),
+        limit: String(pageSize),
+        search,
+        sortField: sort?.id ?? "date",
+        sortOrder: sort?.desc ? "desc" : "asc",
+        from: dateRange.from.toISOString(),
+        to: dateRange.to.toISOString(),
+      });
 
-    const params = new URLSearchParams();
-    params.set("page", String(pageIndex + 1)); // backend pakai 1-based
-    params.set("limit", String(pageSize));
-    params.set("search", search);
-    params.set("sortField", sortField);
-    params.set("sortOrder", sortOrder);
-    params.set("from", dateRange.from.toISOString());
-    params.set("to", dateRange.to.toISOString());
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/dashboard/rekap?${params.toString()}`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/dashboard/rekap?${params.toString()}`,
-      {
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
       }
-    );
-    const json = await res.json();
 
-    if (json.success) {
-      setData(json.data);
-      setTotalCount(json.totalCount);
-      setSummary(json.summary);
-    } else {
-      console.error(json.error);
+      if (!res.ok) throw new Error("Dashboard fetch failed");
+
+      const json = await res.json();
+
+      if (json.success) {
+        setData(json.data);
+        setTotalCount(json.totalCount);
+        setSummary(json.summary);
+      }
+    } catch (err) {
+      console.error("Dashboard error:", err);
+    } finally {
+      setLoading(false);
     }
+  }, [user, pageIndex, pageSize, sorting, dateRange, search]);
 
-    setLoading(false);
-  }, [pageIndex, pageSize, sorting, dateRange, search]);
-
+  /* 🔴 FETCH HANYA SETELAH AUTH SIAP */
   React.useEffect(() => {
+    if (isLoading) return;
+    if (!user) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, isLoading, user]);
 
-  const { user, isLoading } = useRequireAuth();
-
+  /* =======================
+     AUTH GUARD
+  ======================= */
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -230,9 +236,12 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return null; // redirect sedang terjadi
+    return null;
   }
 
+  /* =======================
+     RENDER (TIDAK DIUBAH)
+  ======================= */
   return (
     <div className="space-y-6 gradient-bg min-h-screen p-6">
       {/* HEADER + DATE RANGE FILTER */}
@@ -331,7 +340,7 @@ export default function Dashboard() {
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              ${summary.totalValue}
+              {summary.totalValue}
             </div>
             <p className="text-xs text-gray-500">
               Current inventory value

@@ -1,21 +1,38 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { usePathname } from "next/navigation";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { useAuth } from "@/components/auth-provider";
+import { useEffect } from "react";
 
-import { usePathname } from "next/navigation"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { useAuth } from "@/components/auth-provider"
-
-const publicRoutes = ["/login", "/forgot-password"]
+const publicRoutes = ["/login", "/forgot-password"];
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth()
-  const pathname = usePathname()
-  const cleanPath = pathname.replace(/\/$/, "")
+  const { user, isLoading } = useAuth();
+  const pathname = usePathname();
+  const cleanPath = pathname.replace(/\/$/, "");
+  const isPublicRoute = publicRoutes.includes(cleanPath);
 
-  // Show loading state
+  /* ✅ HOOK HARUS DI ATAS (TIDAK BOLEH SETELAH RETURN) */
+  useEffect(() => {
+    if (!isPublicRoute && !isLoading && !user) {
+      window.location.href = "/login";
+    }
+  }, [isPublicRoute, isLoading, user]);
+
+  /* =========================
+     1. PUBLIC ROUTE
+     ========================= */
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
+
+  /* =========================
+     2. LOADING
+     ========================= */
   if (isLoading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
@@ -26,20 +43,19 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  // If it's a public route (login, forgot password), don't show sidebar
-  if (publicRoutes.includes(cleanPath)) {
-    return <>{children}</>
-  }
-
-  // If user is not authenticated and not on public route, show login
+  /* =========================
+     3. BELUM LOGIN (REDIRECT DI-HANDLE EFFECT)
+     ========================= */
   if (!user) {
-    return <>{children}</>
+    return null;
   }
 
-  // Show admin layout with sidebar for authenticated users
+  /* =========================
+     4. AUTHENTICATED LAYOUT
+     ========================= */
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -54,12 +70,14 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600">Welcome, {user.name}</span>
             <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-rose-400 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">{user.name.charAt(0).toUpperCase()}</span>
+              <span className="text-white text-sm font-medium">
+                {user.name.charAt(0).toUpperCase()}
+              </span>
             </div>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4">{children}</main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
