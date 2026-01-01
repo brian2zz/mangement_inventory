@@ -116,6 +116,8 @@ export default function CustomersPage() {
             setPageIndex(0)
             setSearch(value)
           }}
+          haveFilterExport={false}
+          linkExport="/customers/export"
           onPaginationChange={(newPageIndex, newPageSize) => {
             setPageIndex(newPageIndex)
             setPageSize(newPageSize)

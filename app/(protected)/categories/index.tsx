@@ -163,6 +163,8 @@ export default function CategoriesPage() {
               }}
             />
           }
+          haveFilterExport={false}
+          linkExport="/categories/export"
           onPaginationChange={(newPageIndex, newPageSize) => {
             setPageIndex(newPageIndex);
             setPageSize(newPageSize);

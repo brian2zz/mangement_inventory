@@ -230,6 +230,8 @@ export default function ProductsPage() {
               }}
             />
           }
+          haveFilterExport={false}
+          linkExport="/products/export"
           searchPlaceholder="Search products..."
           onSearchChange={(val) => {
             setPageIndex(0)

@@ -117,6 +117,8 @@ export default function IncomingPage() {
           pageSize={pageSize}
           loading={loading}
           haveFilter
+          haveFilterExport={true}
+          linkExport="/incoming-transactions/export"
           filterComponent={
             <FilterBuilder
               fields={fields}

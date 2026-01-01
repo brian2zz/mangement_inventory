@@ -453,7 +453,10 @@ export default function ProductDetailPage({ id }: { id: string }) {
           pageSize={pageSize}
           loading={isLoading}
           searchPlaceholder="Search transactions..."
-          haveFilter={false}
+          haveFilter={true}
+          haveFilterExport={false}
+          linkExport="/dashboard/rekap/export"
+          filterExport={{ productId: id }}
           onPaginationChange={(newPageIndex, newPageSize) => {
             setPageIndex(newPageIndex);
             setPageSize(newPageSize);

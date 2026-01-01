@@ -111,6 +111,8 @@ export default function SuppliersPage() {
           pageSize={pageSize}
           loading={loading}
           searchPlaceholder="Search suppliers..."
+          haveFilterExport={false}
+          linkExport="/suppliers/export"
           onSearchChange={(val) => {
             setPageIndex(0)
             setSearch(val)

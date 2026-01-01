@@ -251,6 +251,8 @@ export default function ProductRequestsPage() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           loading={loading}
+          haveFilterExport={true}
+          linkExport="/product-requests/export"
           searchPlaceholder="Search requests..."
           haveFilter={false}
           onSearchChange={(value) => {

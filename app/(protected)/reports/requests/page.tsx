@@ -91,6 +91,8 @@ export default function RequestReportPage() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           loading={loading}
+          haveFilterExport={true}
+          linkExport="/report-request/export"
           searchPlaceholder="Search request items..."
           haveFilter={false}
           onPaginationChange={(newPageIndex, newPageSize) => {

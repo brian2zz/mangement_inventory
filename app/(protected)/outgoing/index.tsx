@@ -147,6 +147,8 @@ export default function OutgoingProductsPage() {
           pageSize={pageSize}
           loading={loading}
           haveFilter
+          haveFilterExport={true}
+          linkExport="/outgoing-transactions/export"
           filterComponent={
             <FilterBuilder
               fields={fields}

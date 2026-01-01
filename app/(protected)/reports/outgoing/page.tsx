@@ -127,6 +127,8 @@ export default function OutgoingProductReportPage() {
           loading={loading}
           searchPlaceholder="Search outgoing products..."
           haveFilter={false}
+          haveFilterExport={true}
+          linkExport="/report-outgoing/export"
           onRowClick={(row) => {
             // opsional: misal buka detail
             console.log("Row clicked:", row);

@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as XLSX from "xlsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { format, subYears } from "date-fns";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -29,6 +32,12 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange: (newPageIndex: number, newPageSize: number) => void;
   onSortingChange: (sorting: { id: string; desc: boolean }[]) => void;
   onSearchChange: (value: string) => void;
+  linkExport?: string;
+  haveFilterExport?: boolean;
+  filterExport?: {
+    productId?: string | number;
+    [key: string]: any;
+  };
 }
 
 export function DataTableV2<TData, TValue>({
@@ -40,7 +49,10 @@ export function DataTableV2<TData, TValue>({
   loading = false,
   searchPlaceholder = "Search...",
   haveFilter = false,
+  haveFilterExport = false,
   filterComponent,
+  filterExport,
+  linkExport,
   onRowClick,
   onPaginationChange,
   onSortingChange,
@@ -50,6 +62,7 @@ export function DataTableV2<TData, TValue>({
   const [showFilter, setShowFilter] = React.useState(false);
   const [visibleColumns, setVisibleColumns] = React.useState<string[]>(columns.map((c) => String(c.accessorKey)));
   const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([]);
+  const [exportOpen, setExportOpen] = React.useState(false);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
@@ -59,15 +72,54 @@ export function DataTableV2<TData, TValue>({
     return () => clearTimeout(timeout);
   }, [search]);
 
+  const [dateRange, setDateRange] = React.useState<{
+    from: Date;
+    to: Date;
+  }>({
+    from: subYears(new Date(), 1), // ⏪ default 1 tahun ke belakang
+    to: new Date(),
+  });
+
   // 📤 Export ke Excel
-  const exportToExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.writeFile(wb, "data-export.xlsx");
+  const exportToExcel = (range: { from: Date; to: Date }) => {
+    let url = `${process.env.NEXT_PUBLIC_API_URL}${linkExport}`;
+
+    const params = new URLSearchParams({
+      search: search ?? "",
+      sortField: "transaction_date",
+      sortOrder: "desc",
+    });
+
+    // 🔑 PRIORITY: filterExport
+    if (filterExport && Object.keys(filterExport).length > 0) {
+      Object.entries(filterExport).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, String(value));
+        }
+      });
+    }
+    if (haveFilterExport) {
+
+      params.append("from", range.from.toISOString().slice(0, 10));
+      params.append("to", range.to.toISOString().slice(0, 10));
+
+
+    }
+    url += `?${params.toString()}`;
+    window.open(url, "_blank");
   };
 
-  // 🖨️ Print
+  const normalizeDateRange = (range: { from: Date; to: Date }) => {
+    const from = new Date(range.from);
+    from.setHours(0, 0, 0, 0);
+
+    const to = new Date(range.to);
+    to.setHours(23, 59, 59, 999);
+
+    return { from, to };
+  };
+
+  // 🖨️ Print 
   const printTable = () => window.print();
 
   // 🧮 Sorting toggle
@@ -128,7 +180,18 @@ export function DataTableV2<TData, TValue>({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportToExcel} className="btn-gradient border-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="btn-gradient border-0"
+            onClick={() => {
+              if (haveFilterExport) {
+                setExportOpen(true); // buka popup
+              } else {
+                exportToExcel(dateRange); // langsung download
+              }
+            }}
+          >
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
           <Button variant="outline" size="sm" onClick={printTable} className="btn-gradient border-0">
@@ -280,6 +343,77 @@ export function DataTableV2<TData, TValue>({
           </div>
         </div>
       </div>
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent
+          className="
+          fixed
+          top-[5vh]
+          left-1/2
+          translate-x-[-50%]
+          translate-y-0
+
+          max-w-5xl
+          w-full
+          max-h-[90vh]
+          overflow-y-auto
+        "
+          style={{
+            maxWidth: "600px",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Export Data</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Pilih rentang tanggal data yang ingin diexport
+            </div>
+
+            <div className="flex justify-center">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setDateRange({ from: range.from, to: range.to });
+                  }
+                }}
+                defaultMonth={dateRange.from}
+                numberOfMonths={2}
+              />
+            </div>
+
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>
+                From:{" "}
+                <b>{format(dateRange.from, "dd MMM yyyy")}</b>
+              </span>
+              <span>
+                To:{" "}
+                <b>{format(dateRange.to, "dd MMM yyyy")}</b>
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setExportOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="btn-gradient"
+                onClick={() => {
+                  exportToExcel(dateRange);
+                  setExportOpen(false);
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }

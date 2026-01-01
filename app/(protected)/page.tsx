@@ -379,6 +379,8 @@ export default function Dashboard() {
           loading={loading}
           searchPlaceholder="Search transactions..."
           haveFilter={false}
+          haveFilterExport={true}
+          linkExport="/dashboard/rekap/export"
           onPaginationChange={(newPageIndex, newPageSize) => {
             setPageIndex(newPageIndex);
             setPageSize(newPageSize);

@@ -157,6 +157,9 @@ export default function IncomingProductReportPage() {
         totalCount={totalCount}
         pageIndex={pageIndex}
         pageSize={pageSize}
+        haveFilterExport={true}
+        linkExport="/report-incoming/export"
+        searchPlaceholder="Search incoming reports..."
         onPaginationChange={(newPage, newSize) => {
           setPageIndex(newPage);
           setPageSize(newSize);
