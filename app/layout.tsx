@@ -10,7 +10,11 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Inventory Management System",
   description: "Comprehensive inventory management solution",
-    generator: 'v0.app'
+  generator: 'v0.app',
+  icons: {
+    icon: '/inventra.png',
+    apple: '/inventra.png',
+  },
 }
 
 export default function RootLayout({
