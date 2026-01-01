@@ -37,20 +37,6 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 /* =======================
-   API URL HELPER
-======================= */
-const getApiUrl = () => {
-  const url = process.env.NEXT_PUBLIC_API_URL;
-
-  if (!url) {
-    console.error("❌ NEXT_PUBLIC_API_URL is NOT defined");
-    return null;
-  }
-
-  return url.replace(/\/$/, "");
-};
-
-/* =======================
    PROVIDER
 ======================= */
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -65,14 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     remember = false
   ): Promise<boolean> => {
-    const apiUrl = getApiUrl();
-    if (!apiUrl) return false;
-
     setIsLoading(true);
 
     try {
-      await apiFetch("/sanctum/csrf-cookie");
-      const res = await apiFetch("/api/login", {
+      // ✅ Gunakan endpoint relatif (baseURL sudah di axios)
+      const res = await apiFetch("/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
@@ -84,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
 
-      if (typeof window !== "undefined") {
+      // ✅ SIMPAN TOKEN KE LOCALSTORAGE
+      if (typeof window !== "undefined" && data.token) {
         localStorage.setItem("token", data.token);
       }
 
@@ -102,11 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      LOGOUT
   ======================= */
   const logout = async () => {
-    const apiUrl = getApiUrl();
-    if (!apiUrl || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
     try {
-      await apiFetch(`${apiUrl}/logout`, { method: "POST" });
+      // ✅ Gunakan endpoint relatif
+      await apiFetch("/logout", { method: "POST" });
     } catch (err) {
       console.error("❌ Logout error:", err);
     } finally {
@@ -133,12 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const apiUrl = getApiUrl();
-    if (!apiUrl) {
-      setIsLoading(false);
-      return;
-    }
-
     const token = localStorage.getItem("token");
     if (!token) {
       setIsLoading(false);
@@ -147,11 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const res = await apiFetch(`${apiUrl}/me`, { method: "GET" });
+        // ✅ Gunakan endpoint relatif
+        const res = await apiFetch("/me", { method: "GET" });
 
-        // 🔴 HANDLE 401 DENGAN BENAR
+        // ✅ Handle 401 dengan benar
         if (res.status === 401) {
           localStorage.removeItem("token");
+          setUser(null);
           return;
         }
 
@@ -162,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error("❌ Auth check failed:", err);
         localStorage.removeItem("token");
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
