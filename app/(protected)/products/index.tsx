@@ -147,7 +147,7 @@ export default function ProductsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const sortField = sorting[0]?.id ?? "created_at"
+      const sortField = sorting[0]?.id ?? "cardNumber"
       const sortOrder = sorting[0]?.desc ? "desc" : "asc"
 
       const params = new URLSearchParams({
