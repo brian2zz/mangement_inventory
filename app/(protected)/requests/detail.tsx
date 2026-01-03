@@ -21,12 +21,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { apiFetch } from "@/lib/api"
+import { formatRupiah, formatRupiahInput, parseRupiahInput } from "@/lib/utils"
 
 export default function ProductRequestDetailPage({ id }: { id: string }) {
   const router = useRouter()
 
   const [isLoading, setIsLoading] = React.useState(false)
   const [isEditing, setIsEditing] = React.useState(false)
+
+  const [requestedQtyText, setRequestedQtyText] = React.useState("0")
+  const [fulfilledQtyText, setFulfilledQtyText] = React.useState("0")
+  const [unitPriceText, setUnitPriceText] = React.useState("0")
 
   // ==============================
   // STATE (MATCH FORM BARU)
@@ -62,6 +67,9 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
       if (!json.success) throw new Error(json.error)
 
       setRequest(json.data)
+      setRequestedQtyText(formatRupiahInput(json.data.requestedQuantity))
+      setFulfilledQtyText(formatRupiahInput(json.data.fulfilledQuantity))
+      setUnitPriceText(formatRupiahInput(json.data.unitPrice))
     } catch (e) {
       console.error(e)
       alert("Failed to load request.")
@@ -233,17 +241,17 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
       <div className="grid gap-4 md:grid-cols-4">
         <div className="enhanced-card p-4">
           <div className="text-sm">Requested Quantity</div>
-          <div className="text-2xl font-bold">{request.requestedQuantity}</div>
+          <div className="text-2xl font-bold">{formatRupiahInput(request.requestedQuantity)}</div>
         </div>
 
         <div className="enhanced-card p-4">
           <div className="text-sm">Fulfilled Quantity</div>
-          <div className="text-2xl font-bold text-green-600">{request.fulfilledQuantity}</div>
+          <div className="text-2xl font-bold text-green-600">{formatRupiahInput(request.fulfilledQuantity)}</div>
         </div>
 
         <div className="enhanced-card p-4">
           <div className="text-sm">Total Price</div>
-          <div className="text-2xl font-bold">{totalPrice.toFixed(2)}</div>
+          <div className="text-2xl font-bold">{formatRupiah(totalPrice)}</div>
         </div>
 
         <div className="enhanced-card p-4">
@@ -283,11 +291,14 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="grid gap-2">
               <Label>Requested Quantity</Label>
               <Input
-                type="number"
-                value={request.requestedQuantity}
-                onChange={(e) =>
-                  setRequest({ ...request, requestedQuantity: Number(e.target.value) })
-                }
+                type="text"
+                value={requestedQtyText}
+                onChange={(e) => {
+                  const numeric = parseRupiahInput(e.target.value)
+
+                  setRequestedQtyText(formatRupiahInput(numeric))
+                  setRequest({ ...request, requestedQuantity: numeric })
+                }}
                 disabled={!isEditing}
               />
             </div>
@@ -295,11 +306,14 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="grid gap-2">
               <Label>Fulfilled Quantity</Label>
               <Input
-                type="number"
-                value={request.fulfilledQuantity}
-                onChange={(e) =>
-                  setRequest({ ...request, fulfilledQuantity: Number(e.target.value) })
-                }
+                type="text"
+                value={fulfilledQtyText}
+                onChange={(e) => {
+                  const numeric = parseRupiahInput(e.target.value)
+
+                  setFulfilledQtyText(formatRupiahInput(numeric))
+                  setRequest({ ...request, fulfilledQuantity: numeric })
+                }}
                 disabled={!isEditing}
               />
             </div>
@@ -349,12 +363,14 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="grid gap-2">
               <Label>Unit Price</Label>
               <Input
-                type="number"
-                step="0.01"
-                value={request.unitPrice}
-                onChange={(e) =>
-                  setRequest({ ...request, unitPrice: Number(e.target.value) })
-                }
+                type="text"
+                value={unitPriceText}
+                onChange={(e) => {
+                  const numeric = parseRupiahInput(e.target.value)
+
+                  setUnitPriceText(formatRupiahInput(numeric))
+                  setRequest({ ...request, unitPrice: numeric })
+                }}
                 disabled={!isEditing}
               />
             </div>

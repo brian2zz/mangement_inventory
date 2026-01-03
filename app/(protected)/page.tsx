@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 } from "@/components/data-table";
 import { useRequireAuth } from "@/components/use-require-auth";
+import { formatRupiah } from "@/lib/utils";
 
 /* =======================
    TYPES
@@ -340,7 +341,7 @@ export default function Dashboard() {
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              {summary.totalValue}
+              {formatRupiah(Number(summary.totalValue))}
             </div>
             <p className="text-xs text-gray-500">
               Current inventory value

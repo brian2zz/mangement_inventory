@@ -204,8 +204,17 @@ export default function IncomingEditPage({ id }: { id: string }) {
   };
 
   const totals = React.useMemo(() => {
-    const totalItems = items.reduce((s, it) => s + (it.quantity || 0), 0);
-    const totalValue = items.reduce((s, it) => s + (it.quantity || 0) * (it.unitPrice || 0), 0);
+    const totalItems = items.reduce(
+      (s, it) => s + Number(it.quantity || 0),
+      0
+    );
+
+    const totalValue = items.reduce(
+      (s, it) =>
+        s + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      0
+    );
+
     return { totalItems, totalValue };
   }, [items]);
 

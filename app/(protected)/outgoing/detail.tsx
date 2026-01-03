@@ -234,13 +234,16 @@ export default function OutgoingEditPage({ id }: { id: string }) {
   // ================== TOTALS ==================
   const totals = React.useMemo(() => {
     const totalItems = items.reduce(
-      (s, it) => s + (it.quantity || 0),
+      (s, it) => s + Number(it.quantity || 0),
       0
     );
+
     const totalValue = items.reduce(
-      (s, it) => s + (it.quantity || 0) * (it.unitPrice || 0),
+      (s, it) =>
+        s + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     );
+
     return { totalItems, totalValue };
   }, [items]);
 
@@ -484,7 +487,7 @@ export default function OutgoingEditPage({ id }: { id: string }) {
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Value</div>
           <div className="text-2xl font-bold text-red-600">
-            ${totals.totalValue.toFixed(2)}
+            {totals.totalValue.toFixed(2)}
           </div>
         </div>
 

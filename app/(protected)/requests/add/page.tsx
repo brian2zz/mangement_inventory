@@ -11,11 +11,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/api"
+import { formatRupiah, formatRupiahInput, parseRupiahInput } from "@/lib/utils"
 
 export default function AddProductRequestPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [requestedQtyText, setRequestedQtyText] = React.useState("0")
+  const [fulfilledQtyText, setFulfilledQtyText] = React.useState("0")
+  const [unitPriceText, setUnitPriceText] = React.useState("0")
 
   const [formData, setFormData] = React.useState({
     requestedItem: "",
@@ -124,12 +128,12 @@ export default function AddProductRequestPage() {
 
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Unit Price</div>
-          <div className="text-2xl font-bold text-purple-600">{formData.unitPrice.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-purple-600">{formatRupiah(Number(formData.unitPrice.toFixed(2)))}</div>
         </div>
 
         <div className="enhanced-card p-4">
           <div className="text-sm text-gray-600">Total Price</div>
-          <div className="text-2xl font-bold text-green-600">{totalPrice.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-green-600">{formatRupiah(Number(totalPrice.toFixed(2)))}</div>
         </div>
 
         <div className="enhanced-card p-4">
@@ -181,12 +185,18 @@ export default function AddProductRequestPage() {
             <div className="grid gap-2">
               <Label>Requested Quantity *</Label>
               <Input
-                type="number"
-                value={formData.requestedQuantity}
-                onChange={(e) =>
-                  setFormData({ ...formData, requestedQuantity: Number(e.target.value) })
-                }
-                className={errors.requestedQuantity ? "border-red-500" : ""}
+                type="text"
+                value={requestedQtyText}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  const numeric = parseRupiahInput(raw)
+
+                  setRequestedQtyText(formatRupiahInput(numeric))
+                  setFormData({
+                    ...formData,
+                    requestedQuantity: numeric,
+                  })
+                }}
               />
               {errors.requestedQuantity && (
                 <p className="text-red-500 text-sm">{errors.requestedQuantity}</p>
@@ -197,11 +207,18 @@ export default function AddProductRequestPage() {
             <div className="grid gap-2">
               <Label>Fulfilled Quantity</Label>
               <Input
-                type="number"
-                value={formData.fulfilledQuantity}
-                onChange={(e) =>
-                  setFormData({ ...formData, fulfilledQuantity: Number(e.target.value) })
-                }
+                type="text"
+                value={fulfilledQtyText}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  const numeric = parseRupiahInput(raw)
+
+                  setFulfilledQtyText(formatRupiahInput(numeric))
+                  setFormData({
+                    ...formData,
+                    fulfilledQuantity: numeric,
+                  })
+                }}
               />
             </div>
           </div>
@@ -260,12 +277,18 @@ export default function AddProductRequestPage() {
             <div className="grid gap-2">
               <Label>Unit Price</Label>
               <Input
-                type="number"
-                step="0.01"
-                value={formData.unitPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, unitPrice: Number(e.target.value) })
-                }
+                type="text"
+                value={unitPriceText}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  const numeric = parseRupiahInput(raw)
+
+                  setUnitPriceText(formatRupiahInput(numeric))
+                  setFormData({
+                    ...formData,
+                    unitPrice: numeric,
+                  })
+                }}
               />
             </div>
 

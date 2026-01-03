@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatRupiah } from "@/lib/utils";
 
 type RequestStatus = "Pending" | "Partial" | "Fulfilled";
 
@@ -21,8 +22,8 @@ interface ProductRequest {
   requestDate: string;
   fulfilledDate: string | null;
   store: string;
-  unitPrice: number;
-  totalPrice: number;
+  unitPrice: String;
+  totalPrice: String;
   status: RequestStatus;
 }
 
@@ -205,8 +206,8 @@ export default function ProductRequestsPage() {
         requestDate: r.requestDate,
         fulfilledDate: r.fulfilledDate,
         store: r.store,
-        unitPrice: r.unitPrice,
-        totalPrice: r.totalPrice,
+        unitPrice: formatRupiah(r.unitPrice),
+        totalPrice: formatRupiah(r.totalPrice),
         status: r.status,
       }));
 
@@ -276,3 +277,5 @@ export default function ProductRequestsPage() {
     </div>
   );
 }
+
+
