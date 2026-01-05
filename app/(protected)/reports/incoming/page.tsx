@@ -111,7 +111,9 @@ export default function IncomingProductReportPage() {
   // Table state
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([
+    { id: "date", desc: true },
+  ]);
   const [search, setSearch] = React.useState("");
 
   const [loading, setLoading] = React.useState(true);

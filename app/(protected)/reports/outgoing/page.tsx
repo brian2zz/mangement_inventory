@@ -66,7 +66,9 @@ export default function OutgoingProductReportPage() {
 
   const [sorting, setSorting] = React.useState<
     { id: string; desc: boolean }[]
-  >([]);
+  >([
+    { id: "date", desc: true }, // 👈 default DESC by date
+  ]);
   const [search, setSearch] = React.useState("");
 
   const [loading, setLoading] = React.useState(false);
