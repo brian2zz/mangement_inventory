@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableV2 } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatRupiah } from "@/lib/utils";
 
 interface RequestReportRow {
   id: number;
@@ -13,8 +14,8 @@ interface RequestReportRow {
   requestDate: string;
   fulfilledDate: string;
   store: string;
-  unitPrice: number;
-  totalPrice: number;
+  unitPrice: string;
+  totalPrice: string;
   remarks: string;
   supplierLocation: string;
 }
@@ -26,8 +27,14 @@ const columns: ColumnDef<RequestReportRow>[] = [
   { accessorKey: "requestDate", header: "Request Date" },
   { accessorKey: "fulfilledDate", header: "Fulfilled Date" },
   { accessorKey: "store", header: "Store" },
-  { accessorKey: "unitPrice", header: "Unit Price" },
-  { accessorKey: "totalPrice", header: "Total Price" },
+  {
+    accessorKey: "unitPrice",
+    header: "Unit Price",
+  },
+  {
+    accessorKey: "totalPrice",
+    header: "Total Price",
+  },
   { accessorKey: "remarks", header: "Remarks" },
   { accessorKey: "supplierLocation", header: "Supplier Location" },
 ];
@@ -66,7 +73,24 @@ export default function RequestReportPage() {
     const json = await res.json();
 
     if (json.success) {
-      setData(json.data);
+      const mapped: RequestReportRow[] = (json.data || []).map((r: {
+        remarks: any;
+        supplierLocation: any; id: any; requestedItem: any; requestedQuantity: any; fulfilledQuantity: any; requestDate: any; fulfilledDate: any; store: any; unitPrice: number | null | undefined; totalPrice: number | null | undefined; status: any;
+      }) => ({
+        id: String(r.id),
+        requestedItem: r.requestedItem,
+        requestedQuantity: r.requestedQuantity,
+        fulfilledQuantity: r.fulfilledQuantity,
+        requestDate: r.requestDate,
+        fulfilledDate: r.fulfilledDate,
+        store: r.store,
+        unitPrice: formatRupiah(r.unitPrice),
+        totalPrice: formatRupiah(r.totalPrice),
+        remarks: r.remarks,
+        supplierLocation: r.supplierLocation,
+      }));
+
+      setData(mapped);
       setTotalCount(json.totalCount);
     }
 
