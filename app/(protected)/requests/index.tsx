@@ -16,28 +16,26 @@ type RequestStatus = "Pending" | "Partial" | "Fulfilled";
 
 interface ProductRequest {
   id: string;
-  requestedItem: string;
-  requestedQuantity: number;
-  fulfilledQuantity: number;
   requestDate: string;
   fulfilledDate: string | null;
   store: string;
-  unitPrice: String;
-  totalPrice: String;
+  supplier?: string | null;
+  totalRequestedQuantity: number;
+  totalFulfilledQuantity: number;
+  totalPrice: string;
   status: RequestStatus;
 }
 
 interface ApiListResponse {
   success: boolean;
   data: {
-    id: number;
-    requestedItem: string;
-    requestedQuantity: number;
-    fulfilledQuantity: number;
+    id: string;
     requestDate: string;
     fulfilledDate: string | null;
     store: string;
-    unitPrice: number;
+    supplier?: string | null;
+    totalRequestedQuantity: number;
+    totalFulfilledQuantity: number;
     totalPrice: number;
     status: RequestStatus;
   }[];
@@ -46,108 +44,30 @@ interface ApiListResponse {
 
 const columns: ColumnDef<ProductRequest>[] = [
   {
-    accessorKey: "requestedItem",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Requested Item
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-  },
-  {
-    accessorKey: "requestedQuantity",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Requested Qty
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-  },
-  {
-    accessorKey: "fulfilledQuantity",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Fulfilled Qty
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-  },
-  {
     accessorKey: "requestDate",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Request Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    header: "Request Date",
   },
   {
     accessorKey: "fulfilledDate",
     header: "Fulfilled Date",
-    cell: ({ row }) => {
-      const date = row.getValue("fulfilledDate") as string | null;
-      return date || "N/A";
-    },
+    cell: ({ row }) =>
+      (row.getValue("fulfilledDate") as string | null) ?? "N/A",
   },
   {
     accessorKey: "store",
     header: "Store",
   },
   {
-    accessorKey: "unitPrice",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Unit Price
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const price = row.getValue("unitPrice") as number;
-      return `$${price.toFixed(2)}`;
-    },
+    accessorKey: "totalRequestedQuantity",
+    header: "Total Requested Qty",
+  },
+  {
+    accessorKey: "totalFulfilledQuantity",
+    header: "Total Fulfilled Qty",
   },
   {
     accessorKey: "totalPrice",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() =>
-          column.toggleSorting(column.getIsSorted() === "asc")
-        }
-      >
-        Total Price
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const price = row.getValue("totalPrice") as number;
-      return `$${price.toFixed(2)}`;
-    },
+    header: "Total Price",
   },
   {
     accessorKey: "status",
@@ -177,7 +97,8 @@ export default function ProductRequestsPage() {
   const [loading, setLoading] = React.useState(false);
 
   // sort state untuk kirim ke backend (optional)
-  const [sortField, setSortField] = React.useState<string>("requestDate");
+  const [sortField, setSortField] =
+    React.useState<string>("request_date");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
 
   const fetchRequests = React.useCallback(async () => {
@@ -192,27 +113,30 @@ export default function ProductRequestsPage() {
         params.set("sortOrder", sortOrder);
       }
 
-      const res = await apiFetch(`/product-requests?${params.toString()}`, { method: "GET" });
-      if (!res.ok) throw new Error("Failed to fetch product requests");
-      const json: ApiListResponse = await res.json();
+      const res = await apiFetch(
+        `/product-requests?${params.toString()}`,
+        { method: "GET" }
+      );
 
+      if (!res.ok) throw new Error("Failed to fetch product requests");
+
+      const json: ApiListResponse = await res.json();
       if (!json.success) throw new Error("API error");
 
-      const mapped: ProductRequest[] = (json.data || []).map((r) => ({
-        id: String(r.id),
-        requestedItem: r.requestedItem,
-        requestedQuantity: r.requestedQuantity,
-        fulfilledQuantity: r.fulfilledQuantity,
+      const mapped: ProductRequest[] = json.data.map((r) => ({
+        id: r.id,
         requestDate: r.requestDate,
         fulfilledDate: r.fulfilledDate,
         store: r.store,
-        unitPrice: formatRupiah(r.unitPrice),
+        supplier: r.supplier,
+        totalRequestedQuantity: r.totalRequestedQuantity,
+        totalFulfilledQuantity: r.totalFulfilledQuantity,
         totalPrice: formatRupiah(r.totalPrice),
         status: r.status,
       }));
 
       setData(mapped);
-      setTotalCount(json.totalCount ?? 0);
+      setTotalCount(json.totalCount);
     } catch (err) {
       console.error("Failed to fetch product requests:", err);
     } finally {
