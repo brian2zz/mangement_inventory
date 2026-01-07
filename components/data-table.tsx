@@ -63,6 +63,11 @@ export function DataTableV2<TData, TValue>({
   const [visibleColumns, setVisibleColumns] = React.useState<string[]>(columns.map((c) => String(c.accessorKey)));
   const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([]);
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [pageInput, setPageInput] = React.useState(pageIndex + 1);
+
+  React.useEffect(() => {
+    setPageInput(pageIndex + 1);
+  }, [pageIndex]);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
@@ -133,6 +138,13 @@ export function DataTableV2<TData, TValue>({
     }
     setSorting(newSorting);
     onSortingChange(newSorting);
+  };
+
+  const handleJumpToPage = (value: number) => {
+    if (Number.isNaN(value)) return;
+
+    const page = Math.min(Math.max(value, 1), totalPages);
+    onPaginationChange(page - 1, pageSize);
   };
 
   // 🌈 UI helper
@@ -273,7 +285,10 @@ export function DataTableV2<TData, TValue>({
                   {columns
                     .filter((col) => visibleColumns.includes(String(col.accessorKey)))
                     .map((col) => (
-                      <TableCell key={String(col.accessorKey)}>
+                      <TableCell
+                        key={String(col.accessorKey)}
+                        className="whitespace-normal break-words max-w-[300px]"
+                      >
                         {row[col.accessorKey as string] ?? "-"}
                       </TableCell>
                     ))}
@@ -317,30 +332,49 @@ export function DataTableV2<TData, TValue>({
           </Select>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">
-            Page {pageIndex + 1} of {totalPages}
+            Page
           </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 p-0 bg-white/80 hover:bg-pink-50 border-pink-200"
-              onClick={() => onPaginationChange(Math.max(0, pageIndex - 1), pageSize)}
-              disabled={pageIndex === 0}
-            >
-              {"<"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 p-0 bg-white/80 hover:bg-pink-50 border-pink-200"
-              onClick={() => onPaginationChange(pageIndex + 1, pageSize)}
-              disabled={pageIndex + 1 >= totalPages}
-            >
-              {">"}
-            </Button>
-          </div>
+
+          <Input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={pageInput}
+            onChange={(e) => setPageInput(Number(e.target.value))}
+            onBlur={() => handleJumpToPage(pageInput)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleJumpToPage(pageInput);
+              }
+            }}
+            className="h-8 w-[70px] text-center gradient-input"
+          />
+
+          <span className="text-sm text-gray-600">
+            of {totalPages}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-white/80 hover:bg-pink-50 border-pink-200"
+            onClick={() => onPaginationChange(Math.max(0, pageIndex - 1), pageSize)}
+            disabled={pageIndex === 0}
+          >
+            {"<"}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-white/80 hover:bg-pink-50 border-pink-200"
+            onClick={() => onPaginationChange(pageIndex + 1, pageSize)}
+            disabled={pageIndex + 1 >= totalPages}
+          >
+            {">"}
+          </Button>
         </div>
       </div>
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>

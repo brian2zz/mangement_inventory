@@ -5,19 +5,19 @@
 
 :root {
   /* Base colors with #FF8FAB primary theme */
-  --background: #ffffff;
-  --background-solid: #ffffff;
+  --background: #fafafa;
+  --background-solid: #fafafa;
   --foreground: #374151;
-  --card: #ffffff;
-  --card-solid: #ffffff;
+  --card: #fafafa;
+  --card-solid: #fafafa;
   --card-foreground: #374151;
-  --popover: #ffffff;
+  --popover: #fafafa;
   --popover-foreground: #374151;
 
   /* Primary warm pink #FF8FAB */
   --primary: #ff8fab;
   --primary-solid: #ff8fab;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #fafafa;
   --primary-hover: #ff6f91;
 
   /* Secondary complementary pinks */
@@ -38,23 +38,23 @@
   /* Status colors with warm undertones */
   --destructive: #ef4444;
   --destructive-solid: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #fafafa;
 
   /* Borders and inputs */
   --border: #ffd6dd;
-  --input: #ffffff;
+  --input: #fafafa;
   --ring: #ff8fab;
 
   /* Sidebar specific warm gradients */
   --sidebar: linear-gradient(180deg, #ff8fab 0%, #ffc0cb 50%, #ffd6dd 100%);
   --sidebar-solid: #ff8fab;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
   --sidebar-primary-foreground: #ff8fab;
   --sidebar-accent: rgba(255, 143, 171, 0.2);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent-foreground: #fafafa;
   --sidebar-border: rgba(255, 143, 171, 0.3);
-  --sidebar-ring: #ffffff;
+  --sidebar-ring: #fafafa;
 
   /* Chart colors with warm pink palette */
   --chart-1: #ff8fab;
@@ -78,7 +78,7 @@
 
   --primary: #ff8fab;
   --primary-solid: #ff8fab;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #fafafa;
   --primary-hover: #ff6f91;
 
   --secondary: #4b5563;
@@ -91,11 +91,11 @@
 
   --accent: #ff8fab;
   --accent-solid: #ff8fab;
-  --accent-foreground: #ffffff;
+  --accent-foreground: #fafafa;
 
   --destructive: #ef4444;
   --destructive-solid: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #fafafa;
 
   --border: #4b5563;
   --input: #374151;
@@ -105,7 +105,7 @@
   --sidebar-solid: #374151;
   --sidebar-foreground: #f9fafb;
   --sidebar-primary: #ff8fab;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: rgba(255, 143, 171, 0.1);
   --sidebar-accent-foreground: #f9fafb;
   --sidebar-border: rgba(255, 143, 171, 0.2);
@@ -164,11 +164,11 @@
 
   /* Custom warm pink gradient backgrounds */
   .gradient-bg {
-    background: linear-gradient(135deg, #ffffff 0%, #ffe9ed 100%);
+    background: linear-gradient(135deg, #fafafa 0%, #ffe9ed 100%);
   }
 
   .gradient-card {
-    background: #ffffff;
+    background: #fafafa;
     box-shadow: 0 4px 6px -1px rgba(255, 143, 171, 0.15), 0 2px 4px -1px rgba(255, 143, 171, 0.1);
     border: 1px solid #ffd6dd;
   }
@@ -201,7 +201,7 @@
     background: linear-gradient(135deg, #ff8fab 0%, #ffc0cb 100%);
     border: none;
     border-radius: var(--radius);
-    color: #ffffff;
+    color: #fafafa;
     font-weight: 500;
     transition: all 0.3s ease;
     box-shadow: 0 4px 6px -1px rgba(255, 143, 171, 0.25);
@@ -211,12 +211,12 @@
     background: linear-gradient(135deg, #ff6f91 0%, #ff8fab 100%);
     transform: translateY(-2px);
     box-shadow: 0 10px 25px -5px rgba(255, 143, 171, 0.4);
-    color: #ffffff;
+    color: #fafafa;
   }
 
   /* Card enhancements with warm pink borders */
   .enhanced-card {
-    background: #ffffff;
+    background: #fafafa;
     border-radius: var(--radius);
     border: 1px solid #ffd6dd;
     box-shadow: 0 4px 6px -1px rgba(255, 143, 171, 0.1), 0 2px 4px -1px rgba(255, 143, 171, 0.06);
@@ -245,14 +245,14 @@
 
   /* Header with warm pink gradient */
   .gradient-header {
-    background: linear-gradient(135deg, #ffffff 0%, #ffe9ed 100%);
+    background: linear-gradient(135deg, #fafafa 0%, #ffe9ed 100%);
     border-bottom: 1px solid #ffd6dd;
     box-shadow: 0 1px 3px 0 rgba(255, 143, 171, 0.1);
   }
 
   /* Input enhancements with warm pink focus */
   .gradient-input {
-    background: #ffffff;
+    background: #fafafa;
     border: 1px solid #ffd6dd;
     border-radius: var(--radius-md);
     transition: all 0.3s ease;
@@ -261,7 +261,7 @@
   .gradient-input:focus {
     border-color: #ff8fab;
     box-shadow: 0 0 0 3px rgba(255, 143, 171, 0.15);
-    background: #ffffff;
+    background: #fafafa;
   }
 
   /* Badge enhancements with warm colors */
@@ -288,7 +288,7 @@
 
   .badge-primary {
     background: linear-gradient(135deg, #ff8fab 0%, #ffc0cb 100%);
-    color: #ffffff;
+    color: #fafafa;
     border-radius: var(--radius-sm);
     box-shadow: 0 2px 4px rgba(255, 143, 171, 0.2);
   }
