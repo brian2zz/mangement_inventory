@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 
 interface RequestReportRow {
-  id: number;
+  id: string; // 🔥 PENTING: string UNIQUE
   requestedItem: string;
   requestedQuantity: number;
   fulfilledQuantity: number;
@@ -27,14 +27,8 @@ const columns: ColumnDef<RequestReportRow>[] = [
   { accessorKey: "requestDate", header: "Request Date" },
   { accessorKey: "fulfilledDate", header: "Fulfilled Date" },
   { accessorKey: "store", header: "Store" },
-  {
-    accessorKey: "unitPrice",
-    header: "Unit Price",
-  },
-  {
-    accessorKey: "totalPrice",
-    header: "Total Price",
-  },
+  { accessorKey: "unitPrice", header: "Unit Price" },
+  { accessorKey: "totalPrice", header: "Total Price" },
   { accessorKey: "remarks", header: "Remarks" },
   { accessorKey: "supplierLocation", header: "Supplier Location" },
 ];
@@ -48,57 +42,81 @@ export default function RequestReportPage() {
 
   const [sorting, setSorting] = React.useState<
     { id: string; desc: boolean }[]
-  >([]);
+  >([{ id: "requestDate", desc: true }]);
 
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
+  const abortRef = React.useRef<AbortController | null>(null);
+
   const fetchData = React.useCallback(async () => {
-    setLoading(true);
+    // 🛑 cancel request sebelumnya
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    const sort = sorting[0];
-    const sortField = sort?.id ?? "requestDate";
-    const sortOrder = sort?.desc ? "desc" : "asc";
+    try {
+      setLoading(true);
+      setData([]); // 🔥 CLEAR dulu biar tidak terlihat append
 
-    const params = new URLSearchParams();
-    params.set("page", String(pageIndex + 1));
-    params.set("limit", String(pageSize));
-    params.set("search", search);
-    params.set("sortField", sortField);
-    params.set("sortOrder", sortOrder);
+      const sort = sorting[0];
+      const sortField = sort?.id ?? "requestDate";
+      const sortOrder = sort?.desc ? "desc" : "asc";
 
-    const res = await apiFetch(`/reports/request?${params.toString()}`, {
-      method: "GET",
-    });
-    const json = await res.json();
+      const params = new URLSearchParams({
+        page: String(pageIndex + 1),
+        limit: String(pageSize),
+        search,
+        sortField,
+        sortOrder,
+      });
 
-    if (json.success) {
-      const mapped: RequestReportRow[] = (json.data || []).map((r: {
-        remarks: any;
-        supplierLocation: any; id: any; requestedItem: any; requestedQuantity: any; fulfilledQuantity: any; requestDate: any; fulfilledDate: any; store: any; unitPrice: number | null | undefined; totalPrice: number | null | undefined; status: any;
-      }) => ({
-        id: String(r.id),
-        requestedItem: r.requestedItem,
-        requestedQuantity: r.requestedQuantity,
-        fulfilledQuantity: r.fulfilledQuantity,
-        requestDate: r.requestDate,
-        fulfilledDate: r.fulfilledDate,
-        store: r.store,
-        unitPrice: formatRupiah(r.unitPrice),
-        totalPrice: formatRupiah(r.totalPrice),
-        remarks: r.remarks,
-        supplierLocation: r.supplierLocation,
-      }));
+      const res = await apiFetch(
+        `/reports/request?${params.toString()}`,
+        {
+          method: "GET",
+          signal: controller.signal,
+        }
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to fetch request report");
+      }
+
+      const mapped: RequestReportRow[] = (json.data || []).map(
+        (r: any, idx: number) => ({
+          // 🔥 KEY PALING PENTING (ANTI APPEND)
+          id: `${r.id}-${pageIndex}-${pageSize}-${idx}`,
+
+          requestedItem: r.productName,
+          requestedQuantity: r.requestedQuantity,
+          fulfilledQuantity: r.fulfilledQuantity,
+          requestDate: r.requestDate,
+          fulfilledDate: r.fulfilledDate,
+          store: r.store,
+          unitPrice: formatRupiah(r.unitPrice),
+          totalPrice: formatRupiah(r.totalPrice),
+          remarks: r.remarks ?? "-",
+          supplierLocation: r.supplier ?? "-",
+        })
+      );
 
       setData(mapped);
       setTotalCount(json.totalCount);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Failed to fetch request report:", err);
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [pageIndex, pageSize, sorting, search]);
 
   React.useEffect(() => {
     fetchData();
+    return () => abortRef.current?.abort();
   }, [fetchData]);
 
   return (
@@ -115,15 +133,23 @@ export default function RequestReportPage() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           loading={loading}
-          haveFilterExport={true}
+          haveFilterExport
           linkExport="/report-request/export"
           searchPlaceholder="Search request items..."
           haveFilter={false}
           onPaginationChange={(newPageIndex, newPageSize) => {
-            setPageIndex(newPageIndex);
-            setPageSize(newPageSize);
+            // 🔥 reset page kalau pageSize berubah
+            if (newPageSize !== pageSize) {
+              setPageIndex(0);
+              setPageSize(newPageSize);
+            } else {
+              setPageIndex(newPageIndex);
+            }
           }}
-          onSortingChange={(s) => setSorting(s)}
+          onSortingChange={(newSorting) => {
+            setPageIndex(0);
+            setSorting(newSorting);
+          }}
           onSearchChange={(value) => {
             setPageIndex(0);
             setSearch(value);
