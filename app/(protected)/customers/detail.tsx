@@ -271,10 +271,10 @@ export default function CustomerDetailPage({ id }: { id: string }) {
       </div>
 
       {/* Order History tetap dummy */}
-      <div className="enhanced-card p-6">
+      {/* <div className="enhanced-card p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Order History</h2>
         <DataTable columns={orderColumns} data={mockOrders} searchPlaceholder="Search orders..." />
-      </div>
+      </div> */}
     </div>
   )
 }

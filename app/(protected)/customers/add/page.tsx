@@ -56,7 +56,7 @@ export default function AddCustomerPage() {
     setErrors({});
 
     try {
-      const res = await apiFetch("/api/customers", {
+      const res = await apiFetch("/customers", {
         method: "POST",
         body: JSON.stringify(formData),
       });
