@@ -60,7 +60,7 @@ export default function AddCustomerPage() {
         method: "POST",
         body: JSON.stringify(formData),
       });
-
+ 
       if (!res.ok) {
         const err = await res.json();
         alert(err.error || "Failed to add customer");
