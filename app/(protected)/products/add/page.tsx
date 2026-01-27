@@ -52,7 +52,7 @@ export default function AddProductPage() {
     categoryId: "",
     supplierId: null as number | null,
     supplierName: "",
-    unitPrice: "",
+    unitPrice: 0,
     reorderLevel: "",
     initialStock: "",
   });

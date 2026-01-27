@@ -300,6 +300,7 @@ export default function ProductDetailPage({ id }: { id: string }) {
           supplierId: product.supplierId,
           unitPrice: product.unitPrice,
           reorderLevel: product.reorderLevel,
+          currentStock: product.currentStock,
           status: "active",
         }),
       })

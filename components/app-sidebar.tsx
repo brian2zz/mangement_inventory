@@ -15,6 +15,7 @@ import {
   Users2,
   LogOut,
   User,
+  SlidersHorizontal,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -42,6 +43,11 @@ const menuItems = [
     title: "Products",
     url: "/products",
     icon: Package,
+  },
+  {
+    title: "Inventory Adjustments",
+    url: "/adjustment",
+    icon: SlidersHorizontal,
   },
   {
     title: "Product Categories",
