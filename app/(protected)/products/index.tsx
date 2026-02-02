@@ -237,10 +237,12 @@ export default function ProductsPage() {
             setPageIndex(0)
             setSearch(val)
           }}
+          sorting={sorting}
           onPaginationChange={(newPage, newSize) => {
             setPageIndex(newPage)
             setPageSize(newSize)
           }}
+
           onSortingChange={setSorting}
           onRowClick={handleRowClick}
         />

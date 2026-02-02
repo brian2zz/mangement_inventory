@@ -28,6 +28,7 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   haveFilter?: boolean;
   filterComponent?: React.ReactNode;
+  sorting?: { id: string; desc: boolean }[]
   onRowClick?: (row: TData) => void;
   onPaginationChange: (newPageIndex: number, newPageSize: number) => void;
   onSortingChange: (sorting: { id: string; desc: boolean }[]) => void;
@@ -53,6 +54,7 @@ export function DataTableV2<TData, TValue>({
   filterComponent,
   filterExport,
   linkExport,
+  sorting,
   onRowClick,
   onPaginationChange,
   onSortingChange,
@@ -61,7 +63,7 @@ export function DataTableV2<TData, TValue>({
   const [search, setSearch] = React.useState("");
   const [showFilter, setShowFilter] = React.useState(false);
   const [visibleColumns, setVisibleColumns] = React.useState<string[]>(columns.map((c) => String(c.accessorKey)));
-  const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([]);
+  // const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([]);
   const [exportOpen, setExportOpen] = React.useState(false);
   const [pageInput, setPageInput] = React.useState(pageIndex + 1);
 
@@ -87,32 +89,39 @@ export function DataTableV2<TData, TValue>({
 
   // 📤 Export ke Excel
   const exportToExcel = (range: { from: Date; to: Date }) => {
-    let url = `${process.env.NEXT_PUBLIC_API_URL}${linkExport}`;
+    if (!linkExport) return
+
+    let url = `${process.env.NEXT_PUBLIC_API_URL}${linkExport}`
+
+    // 🔹 ambil sorting dari table (kalau ada)
+    const sortField = sorting?.[0]?.id ?? "id"
+    const sortOrder = sorting?.[0]?.desc ? "desc" : "asc"
 
     const params = new URLSearchParams({
       search: search ?? "",
-      sortField: "transaction_date",
-      sortOrder: "desc",
-    });
+      sortField,
+      sortOrder,
+    })
 
     // 🔑 PRIORITY: filterExport
     if (filterExport && Object.keys(filterExport).length > 0) {
       Object.entries(filterExport).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
-          params.append(key, String(value));
+          params.append(key, String(value))
         }
-      });
+      })
     }
+
+    // 📅 filter tanggal (optional)
     if (haveFilterExport) {
-
-      params.append("from", range.from.toISOString().slice(0, 10));
-      params.append("to", range.to.toISOString().slice(0, 10));
-
-
+      params.append("from", range.from.toISOString().slice(0, 10))
+      params.append("to", range.to.toISOString().slice(0, 10))
     }
-    url += `?${params.toString()}`;
-    window.open(url, "_blank");
-  };
+
+    url += `?${params.toString()}`
+    console.log("Export URL:", url)
+    window.open(url, "_blank")
+  }
 
   const normalizeDateRange = (range: { from: Date; to: Date }) => {
     const from = new Date(range.from);
@@ -136,7 +145,7 @@ export function DataTableV2<TData, TValue>({
     } else {
       newSorting = [{ id: accessorKey, desc: !current.desc }];
     }
-    setSorting(newSorting);
+
     onSortingChange(newSorting);
   };
 
