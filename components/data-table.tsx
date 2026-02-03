@@ -158,9 +158,12 @@ export function DataTableV2<TData, TValue>({
 
   // 🌈 UI helper
   const renderSortIcon = (accessorKey: string) => {
-    const current = sorting[0];
+    const current = sorting?.[0];
     if (!current || current.id !== accessorKey) return null;
-    return current.desc ? <ArrowDown className="inline ml-1 h-3 w-3" /> : <ArrowUp className="inline ml-1 h-3 w-3" />;
+
+    return current.desc
+      ? <ArrowDown className="inline ml-1 h-3 w-3" />
+      : <ArrowUp className="inline ml-1 h-3 w-3" />;
   };
 
   return (
