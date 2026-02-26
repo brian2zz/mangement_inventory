@@ -79,6 +79,35 @@ const columns: ColumnDef<Product>[] = [
       )
     },
   },
+  {
+    accessorKey: "status",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Status
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string
+
+      if (status === "active") {
+        return <Badge variant="default">Active</Badge>
+      }
+
+      if (status === "passive" || status === "inactive") {
+        return (
+          <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
+            Passive
+          </Badge>
+        )
+      }
+
+      return <Badge variant="secondary">{status}</Badge>
+    },
+  },
 ]
 
 export const productFilterFields: FieldOption[] = [

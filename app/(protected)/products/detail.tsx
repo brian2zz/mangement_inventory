@@ -33,6 +33,7 @@ import {
 import SupplierSelectModal from "@/components/selectors/SupplierSelectModal"
 import { apiFetch } from "@/lib/api"
 import { DateRange } from "react-day-picker"
+import { Switch } from "@/components/ui/switch"
 
 /* ================== TYPES ================== */
 interface Category {
@@ -57,6 +58,7 @@ interface Product {
   unitPrice: number
   reorderLevel: number
   currentStock: number
+  status: "active" | "passive"   // ⬅️ tambahkan ini
 }
 
 interface detailRow {
@@ -301,7 +303,7 @@ export default function ProductDetailPage({ id }: { id: string }) {
           unitPrice: product.unitPrice,
           reorderLevel: product.reorderLevel,
           currentStock: product.currentStock,
-          status: "active",
+          status: product.status,
         }),
       })
 
@@ -430,6 +432,25 @@ export default function ProductDetailPage({ id }: { id: string }) {
 
           <Label>Current Stock</Label>
           <Input value={product.currentStock} readOnly />
+
+          <Label>Status</Label>
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={product.status === "active"}
+              onCheckedChange={(checked) =>
+                setProduct({
+                  ...product,
+                  status: checked ? "active" : "passive",
+                })
+              }
+            />
+            <span className={`font-medium ${product.status === "active"
+              ? "text-green-600"
+              : "text-gray-500"
+              }`}>
+              {product.status === "active" ? "Active" : "Passive"}
+            </span>
+          </div>
         </div>
       </div>
 
