@@ -14,9 +14,6 @@ const nextConfig = {
 
   output: 'export',
 
-  experimental: {
-    turbo: false, // WAJIB untuk CloudLinux
-  },
 }
 
 export default nextConfig
