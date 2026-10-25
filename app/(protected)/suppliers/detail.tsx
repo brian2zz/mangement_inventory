@@ -1,16 +1,28 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
-import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowLeft, Save, Trash2, Edit, Phone, Mail, MapPin } from "lucide-react"
+import { useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  Save,
+  Trash2,
+  Edit,
+  Phone,
+  Mail,
+  MapPin,
+  Building2,
+  Calendar,
+  Clock,
+  Sparkles,
+  User,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DataTableV2 as DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,181 +36,192 @@ import {
 } from "@/components/ui/alert-dialog"
 import { apiFetch } from "@/lib/api"
 
-interface Product {
-  id: string
-  productName: string
-  partNumber: string
-  category: string
-  unitPrice: number
-  lastOrderDate: string
-  totalOrdered: number
-}
-
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    productName: "Widget A",
-    partNumber: "PN001",
-    category: "Electronics",
-    unitPrice: 25.99,
-    lastOrderDate: "2024-01-15",
-    totalOrdered: 500,
-  },
-  {
-    id: "2",
-    productName: "Component X",
-    partNumber: "PN004",
-    category: "Hardware",
-    unitPrice: 8.75,
-    lastOrderDate: "2024-01-20",
-    totalOrdered: 300,
-  },
-]
-
-const productColumns: ColumnDef<Product>[] = [
-  { accessorKey: "productName", header: "Product Name" },
-  { accessorKey: "partNumber", header: "Part Number" },
-  { accessorKey: "category", header: "Category" },
-  {
-    accessorKey: "unitPrice",
-    header: "Unit Price",
-    cell: ({ row }) => `$${(row.getValue("unitPrice") as number).toFixed(2)}`,
-  },
-  { accessorKey: "lastOrderDate", header: "Last Order" },
-  {
-    accessorKey: "totalOrdered",
-    header: "Total Ordered",
-    cell: ({ row }) => <Badge variant="default">{row.getValue("totalOrdered") as number}</Badge>,
-  },
-]
-
 export default function SupplierDetailPage({ id }: { id?: string }) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(true)
   const [isEditing, setIsEditing] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
 
   const [supplier, setSupplier] = React.useState({
-    id: id as string,
-    supplierName: "Supplier ABC",
-    phoneNumber: "+1 (555) 123-4567",
-    email: "contact@supplierabc.com",
-    address: "123 Industrial Ave, City, State 12345",
-    contactPerson: "John Smith",
-    website: "www.supplierabc.com",
-    taxId: "TAX123456789",
-    paymentTerms: "Net 30",
-    notes: "Reliable supplier with good quality products and on-time delivery",
-    totalProducts: 15,
-    totalOrders: 45,
-    totalValue: 25750.5,
-    rating: 4.5,
+    id: id || "",
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    contactPerson: "",
+    notes: "",
     status: "active",
+    createdAt: "",
+    updatedAt: "",
   })
 
-  // ✅ Fetch from backend (tetap ada fallback ke dummy)
-  React.useEffect(() => {
-    const fetchSupplier = async () => {
-      try {
-        const res = await apiFetch(`/suppliers/${id}`, { method: "GET" })
-        if (!res.ok) return
-        const json = await res.json()
-        if (json.success && json.supplier) {
-          setSupplier((prev) => ({
-            ...prev,
-            supplierName: json.supplier.name || prev.supplierName,
-            phoneNumber: json.supplier.phone || prev.phoneNumber,
-            email: json.supplier.email || prev.email,
-            address: json.supplier.address || prev.address,
-            contactPerson: json.supplier.contactPerson || prev.contactPerson,
-            status: json.supplier.status || "active",
-          }))
-        }
-      } catch (err) {
-        console.warn("⚠️ Failed to fetch supplier, using dummy data", err)
-      }
-    }
-    fetchSupplier()
-  }, [id])
-
-  // ✅ Update supplier (PUT ke backend)
-  const handleSave = async () => {
+  // ✅ Fetch data asli dari backend Laravel
+  const fetchSupplier = React.useCallback(async () => {
+    if (!id) return
     setIsLoading(true)
+    try {
+      const res = await apiFetch(`/suppliers/${id}`, { method: "GET" })
+      if (!res.ok) throw new Error("Gagal mengambil data supplier")
+      const json = await res.json()
+      const data = json.supplier || json.data || json
+
+      setSupplier({
+        id: String(data.id ?? id),
+        name: data.name || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        address: data.address || "",
+        contactPerson: data.contact_person || data.contactPerson || "",
+        notes: data.notes || "",
+        status: data.status || "active",
+        createdAt: data.created_at || data.createdAt || "",
+        updatedAt: data.updated_at || data.updatedAt || "",
+      })
+    } catch (err: any) {
+      console.error("Gagal memuat supplier:", err)
+      alert(err.message || "Gagal memuat supplier")
+      router.push("/suppliers")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id, router])
+
+  React.useEffect(() => {
+    fetchSupplier()
+  }, [fetchSupplier])
+
+  // Save changes (PUT)
+  const handleSave = async () => {
+    setIsSaving(true)
     try {
       const res = await apiFetch(`/suppliers/${id}`, {
         method: "PUT",
         body: JSON.stringify({
-          name: supplier.supplierName,
-          phone: supplier.phoneNumber,
+          name: supplier.name,
+          phone: supplier.phone,
           email: supplier.email,
           address: supplier.address,
           contactPerson: supplier.contactPerson,
+          notes: supplier.notes,
           status: supplier.status,
         }),
       })
-      if (!res.ok) throw new Error("Failed to update supplier")
-      alert("✅ Supplier updated successfully!")
+
+      const json = await res.json()
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || json.message || "Gagal memperbarui supplier")
+      }
+
+      alert("✅ Data supplier berhasil disimpan!")
       setIsEditing(false)
-    } catch (err) {
-      alert("❌ Error updating supplier")
+      fetchSupplier() // refresh data terbaru
+    } catch (err: any) {
+      alert("❌ Error: " + (err.message || "Gagal memperbarui data"))
       console.error(err)
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
-  // ✅ Delete supplier
+  // Delete supplier
   const handleDelete = async () => {
-    setIsLoading(true)
+    setIsSaving(true)
     try {
       const res = await apiFetch(`/suppliers/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete supplier")
-      alert("🗑️ Supplier deleted successfully")
+      const json = await res.json()
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || json.message || "Gagal menghapus supplier")
+      }
+
+      alert("🗑️ Supplier berhasil dihapus")
       router.push("/suppliers")
-    } catch (err) {
-      alert("❌ Error deleting supplier")
+    } catch (err: any) {
+      alert("❌ Gagal menghapus supplier: " + (err.message || "Terjadi kesalahan"))
       console.error(err)
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
+  }
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "-"
+    try {
+      const d = new Date(dateStr)
+      return d.toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] text-pink-500 font-medium">
+        Memuat detail supplier...
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6 gradient-bg min-h-screen p-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-pink-100/60">
         <div className="flex items-center space-x-4">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => router.back()}
-            className="bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 transition-all duration-300"
+            onClick={() => router.push("/suppliers")}
+            className="rounded-full bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 shadow-xs transition-all duration-300"
           >
             <ArrowLeft className="h-4 w-4 text-pink-600" />
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-            Supplier Details
-          </h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+                {supplier.name || "Supplier Detail"}
+              </h1>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-100/70 text-pink-700">
+                <Building2 className="w-3 h-3 text-pink-500" /> ID #{supplier.id}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+              Detail profil vendor, narahubung (PIC), dan kontak operasional
+            </p>
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 self-end sm:self-auto">
           {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)} className="btn-gradient border-0">
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="btn-gradient border-0 rounded-full px-5 shadow-sm text-sm"
+            >
               <Edit className="mr-2 h-4 w-4" />
-              Edit
+              Edit Supplier
             </Button>
           ) : (
             <>
               <Button
                 variant="outline"
-                onClick={() => setIsEditing(false)}
-                className="bg-white/80 hover:bg-white border-pink-200"
+                onClick={() => {
+                  setIsEditing(false)
+                  fetchSupplier()
+                }}
+                className="bg-white/80 hover:bg-white border-pink-200 text-gray-700 rounded-full px-4 text-sm"
               >
-                Cancel
+                Batal
               </Button>
-              <Button onClick={handleSave} disabled={isLoading} className="btn-gradient border-0">
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="btn-gradient border-0 rounded-full px-5 shadow-sm text-sm"
+              >
                 <Save className="mr-2 h-4 w-4" />
-                {isLoading ? "Saving..." : "Save"}
+                {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
               </Button>
             </>
           )}
@@ -208,27 +231,29 @@ export default function SupplierDetailPage({ id }: { id?: string }) {
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0"
+                disabled={isSaving}
+                className="rounded-full px-4 text-sm bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 shadow-none"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                Hapus
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-white/95 backdrop-blur-sm border-pink-200">
+            <AlertDialogContent className="bg-white/95 backdrop-blur-md border border-pink-200/80 rounded-2xl shadow-xl">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-gray-800">Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-600">
-                  This action cannot be undone. This will permanently delete the supplier and all associated data.
+                <AlertDialogTitle className="text-gray-900 font-bold">Hapus Supplier Ini?</AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-600 text-sm">
+                  Tindakan ini tidak dapat dibatalkan. Data supplier akan dihapus permanen dari sistem inventaris.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-white hover:bg-gray-50 border-pink-200">Cancel</AlertDialogCancel>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-700 border-0 rounded-full text-sm">
+                  Batal
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                  className="bg-rose-500 hover:bg-rose-600 text-white rounded-full text-sm border-0 shadow-sm"
                 >
-                  Delete
+                  Hapus Permanen
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -236,100 +261,213 @@ export default function SupplierDetailPage({ id }: { id?: string }) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Products</div>
-          <div className="text-2xl font-bold text-pink-600">{supplier.totalProducts}</div>
+      {/* Summary Cards (Data Nyata dari Database) */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="enhanced-card p-5 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Status Vendor</span>
+            <div className="p-2.5 rounded-xl bg-pink-100/70 text-pink-600">
+              <Building2 className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <Badge
+              className={
+                supplier.status === "active"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-semibold text-sm px-3 py-1"
+                  : "bg-gray-100 text-gray-700 border-gray-200 shadow-none font-semibold text-sm px-3 py-1"
+              }
+            >
+              {supplier.status.toUpperCase()}
+            </Badge>
+          </div>
+          <p className="text-xs text-pink-600 font-medium mt-2">Status operasional</p>
         </div>
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Orders</div>
-          <div className="text-2xl font-bold text-blue-600">{supplier.totalOrders}</div>
+
+        <div className="enhanced-card p-5 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Contact Person</span>
+            <div className="p-2.5 rounded-xl bg-blue-100/70 text-blue-600">
+              <User className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3 text-lg font-bold text-gray-800 truncate">
+            {supplier.contactPerson || "-"}
+          </div>
+          <p className="text-xs text-blue-700 font-medium mt-1">Perwakilan / PIC</p>
         </div>
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Value</div>
-          <div className="text-2xl font-bold text-green-600">{supplier.totalValue.toFixed(2)}</div>
+
+        <div className="enhanced-card p-5 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Terdaftar Sejak</span>
+            <div className="p-2.5 rounded-xl bg-purple-100/70 text-purple-600">
+              <Calendar className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3 text-base font-semibold text-gray-800">
+            {formatDate(supplier.createdAt)}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Tanggal registrasi</p>
         </div>
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Rating</div>
-          <div className="text-2xl font-bold text-yellow-600">{supplier.rating}/5</div>
+
+        <div className="enhanced-card p-5 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pembaruan Terakhir</span>
+            <div className="p-2.5 rounded-xl bg-amber-100/70 text-amber-600">
+              <Clock className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-3 text-base font-semibold text-gray-800">
+            {formatDate(supplier.updatedAt)}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Sinkronisasi database</p>
         </div>
       </div>
 
       {/* Supplier Details Form */}
-      <div className="enhanced-card p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Supplier Information</h2>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4">
-            {[
-              ["Supplier Name", "supplierName"],
-              ["Contact Person", "contactPerson"],
-              ["Phone Number", "phoneNumber"],
-              ["Email", "email"],
-              ["Website", "website"],
-            ].map(([label, key]) => (
-              <div className="grid gap-2" key={key}>
-                <Label className="text-gray-700 font-medium">{label}</Label>
-                <Input
-                  value={(supplier as any)[key]}
-                  onChange={(e) => setSupplier({ ...supplier, [key]: e.target.value })}
-                  className="gradient-input"
-                  disabled={!isEditing}
-                />
-              </div>
-            ))}
+      <div className="enhanced-card overflow-hidden">
+        <div className="px-6 py-4 border-b border-pink-100/60 bg-gradient-to-r from-pink-50/50 via-rose-50/20 to-transparent flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-pink-100/70 text-pink-600">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Informasi Supplier</h2>
+              <p className="text-xs text-gray-500">Kelola identitas perusahaan, PIC, dan alamat kontak</p>
+            </div>
           </div>
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label className="text-gray-700 font-medium">Address</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-pink-400" />
-                <Textarea
-                  value={supplier.address}
-                  onChange={(e) => setSupplier({ ...supplier, address: e.target.value })}
-                  rows={3}
-                  className="pl-10 gradient-input resize-none"
+          {isEditing && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              Mode Edit Aktif
+            </span>
+          )}
+        </div>
+
+        <div className="p-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Left Column */}
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  Nama Supplier <span className="text-pink-500">*</span>
+                </Label>
+                <Input
+                  value={supplier.name}
+                  onChange={(e) => setSupplier({ ...supplier, name: e.target.value })}
+                  className="rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 h-11 bg-white/70"
                   disabled={!isEditing}
                 />
               </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">Contact Person (PIC)</Label>
+                <Input
+                  value={supplier.contactPerson}
+                  onChange={(e) => setSupplier({ ...supplier, contactPerson: e.target.value })}
+                  placeholder="Nama narahubung / PIC vendor..."
+                  className="rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 h-11 bg-white/70"
+                  disabled={!isEditing}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  Nomor Telepon <span className="text-pink-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-pink-400" />
+                  <Input
+                    value={supplier.phone}
+                    onChange={(e) => setSupplier({ ...supplier, phone: e.target.value })}
+                    className="pl-10 rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 h-11 bg-white/70"
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">Alamat Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-pink-400" />
+                  <Input
+                    type="email"
+                    value={supplier.email}
+                    onChange={(e) => setSupplier({ ...supplier, email: e.target.value })}
+                    placeholder="email@supplier.com"
+                    className="pl-10 rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 h-11 bg-white/70"
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label className="text-gray-700 font-medium">Tax ID</Label>
-              <Input
-                value={supplier.taxId}
-                onChange={(e) => setSupplier({ ...supplier, taxId: e.target.value })}
-                className="gradient-input"
-                disabled={!isEditing}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-gray-700 font-medium">Payment Terms</Label>
-              <Input
-                value={supplier.paymentTerms}
-                onChange={(e) => setSupplier({ ...supplier, paymentTerms: e.target.value })}
-                className="gradient-input"
-                disabled={!isEditing}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-gray-700 font-medium">Notes</Label>
-              <Textarea
-                value={supplier.notes}
-                onChange={(e) => setSupplier({ ...supplier, notes: e.target.value })}
-                rows={3}
-                className="gradient-input resize-none"
-                disabled={!isEditing}
-              />
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  Alamat Lengkap <span className="text-pink-500">*</span>
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-3.5 h-4 w-4 text-pink-400" />
+                  <Textarea
+                    value={supplier.address}
+                    onChange={(e) => setSupplier({ ...supplier, address: e.target.value })}
+                    rows={4}
+                    placeholder="Alamat kantor, gudang, atau domisili supplier..."
+                    className="pl-10 rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 resize-none bg-white/70"
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">Catatan Khusus</Label>
+                <Textarea
+                  value={supplier.notes}
+                  onChange={(e) => setSupplier({ ...supplier, notes: e.target.value })}
+                  rows={3}
+                  placeholder="Catatan ketentuan pengiriman, rekening, dsb..."
+                  className="rounded-xl border-pink-200/80 focus:border-pink-400 focus:ring-pink-200 resize-none bg-white/70"
+                  disabled={!isEditing}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-600">Status Vendor</Label>
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-pink-100 bg-white/70">
+                  <Switch
+                    id="supplier-status-switch"
+                    checked={supplier.status === "active"}
+                    onCheckedChange={(checked) =>
+                      setSupplier({ ...supplier, status: checked ? "active" : "inactive" })
+                    }
+                    disabled={!isEditing}
+                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-800">
+                      {supplier.status === "active" ? "Aktif (Active)" : "Non-aktif (Inactive)"}
+                    </span>
+                    <Badge
+                      className={
+                        supplier.status === "active"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-semibold text-xs px-2.5 py-0.5"
+                          : "bg-rose-50 text-rose-700 border-rose-200 shadow-none font-semibold text-xs px-2.5 py-0.5"
+                      }
+                    >
+                      {supplier.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+                {isEditing && (
+                  <p className="text-[11px] text-gray-400">
+                    Geser toggle switch untuk mengaktifkan atau menonaktifkan rekanan vendor ini.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Products Table */}
-      {/* <div className="enhanced-card p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Products from this Supplier</h2>
-        <DataTable columns={productColumns} data={mockProducts} searchPlaceholder="Search products..." />
-      </div> */}
     </div>
   )
 }

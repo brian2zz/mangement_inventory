@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"
 import type { ColumnDef, SortingState } from "@tanstack/react-table"
 import { DataTableV2 as DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
-import { Plus, AlertCircle, ArrowUpDown } from "lucide-react"
+import { Plus, AlertCircle, ArrowUpDown, SlidersHorizontal, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { FilterBuilder, type FieldOption } from "@/components/filters/FilterBuilder"
+import { format } from "date-fns"
 
 /* ======================================================
    TYPES — SESUAI API
@@ -42,7 +43,7 @@ export default function InventoryAdjustmentPage() {
     const [sorting, setSorting] = useState<SortingState>([])
     const [filters, setFilters] = useState<any[]>([])
 
-    const token = localStorage.getItem("token")
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
     // =========================
     // FILTER FIELDS (MATCH API)
@@ -110,7 +111,7 @@ export default function InventoryAdjustmentPage() {
     }, [pageIndex, pageSize, search, sorting, filters])
 
     // =========================
-    // COLUMNS
+    // COLUMNS (MODERN SOFT LUXURY)
     // =========================
     const columns = useMemo<ColumnDef<InventoryAdjustment>[]>(() => [
         {
@@ -118,71 +119,117 @@ export default function InventoryAdjustmentPage() {
             header: ({ column }) => (
                 <Button
                     variant="ghost"
+                    size="sm"
+                    className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
                     onClick={() =>
                         column.toggleSorting(column.getIsSorted() === "asc")
                     }
                 >
-                    Date <ArrowUpDown className="ml-2 h-4 w-4" />
+                    Date <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
                 </Button>
             ),
-            cell: ({ row }) =>
-                new Date(row.getValue("createdAt")).toLocaleString(),
+            cell: ({ row }) => {
+                const date = new Date(row.getValue("createdAt"))
+                return (
+                    <span className="font-medium text-slate-700 text-xs">
+                        {isNaN(date.getTime()) ? "-" : format(date, "dd MMM yyyy, HH:mm")}
+                    </span>
+                )
+            },
         },
 
         {
             accessorKey: "product",
-            header: "Product",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Product</span>,
+            cell: ({ row }) => (
+                <span className="font-semibold text-slate-800 text-sm">
+                    {row.getValue("product")}
+                </span>
+            ),
         },
 
         {
             accessorKey: "movementType",
-            header: "Type",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Type</span>,
             cell: ({ row }) => {
                 const type = row.getValue("movementType") as string
                 const isIncrease = type === "adjustment_increase"
 
                 return (
-                    <Badge variant={isIncrease ? "default" : "destructive"}>
+                    <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            isIncrease
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                                : "bg-rose-50 text-rose-700 border border-rose-200/80"
+                        }`}
+                    >
                         {isIncrease ? "Increase" : "Decrease"}
-                    </Badge>
+                    </span>
                 )
             },
         },
 
         {
             accessorKey: "quantity",
-            header: "Qty",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Qty</span>,
             cell: ({ row }) => {
-                const isOut =
-                    row.original.movementType === "adjustment_decrease"
+                const isOut = row.original.movementType === "adjustment_decrease"
+                // Nilai absolut agar tanda minus tidak double jika backend sudah mengembalikan angka negatif
+                const rawQty = row.getValue("quantity") as number
+                const absQty = Math.abs(rawQty)
 
                 return (
-                    <Badge variant={isOut ? "destructive" : "default"}>
-                        {isOut && "-"}
-                        {row.getValue("quantity")}
-                    </Badge>
+                    <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            isOut
+                                ? "bg-rose-100 text-rose-700 border border-rose-300"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                        }`}
+                    >
+                        {isOut ? `-${absQty}` : `+${absQty}`}
+                    </span>
                 )
             },
         },
 
         {
             accessorKey: "previousStock",
-            header: "Prev Stock",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Prev Stock</span>,
+            cell: ({ row }) => (
+                <span className="text-slate-500 font-mono text-xs">
+                    {row.getValue("previousStock")}
+                </span>
+            ),
         },
 
         {
             accessorKey: "newStock",
-            header: "New Stock",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">New Stock</span>,
+            cell: ({ row }) => (
+                <span className="font-bold text-slate-700 font-mono text-xs">
+                    {row.getValue("newStock")}
+                </span>
+            ),
         },
 
         {
             accessorKey: "createdBy",
-            header: "Created By",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Created By</span>,
+            cell: ({ row }) => (
+                <span className="text-slate-600 text-xs">
+                    {row.getValue("createdBy")}
+                </span>
+            ),
         },
 
         {
             accessorKey: "notes",
-            header: "Reason",
+            header: () => <span className="font-medium text-slate-600 text-xs uppercase">Reason</span>,
+            cell: ({ row }) => (
+                <span className="text-xs text-slate-500 italic max-w-[200px] truncate block">
+                    {row.getValue("notes") || "—"}
+                </span>
+            ),
         },
     ], [])
 
@@ -190,16 +237,26 @@ export default function InventoryAdjustmentPage() {
     // RENDER
     // =========================
     return (
-        <div className="space-y-6 gradient-bg min-h-screen p-6">
+        <div className="space-y-6 min-h-screen p-2 sm:p-4 max-w-7xl mx-auto">
             {/* HEADER */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                    Inventory Adjustment
-                </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+                            Inventory Adjustment
+                        </h1>
+                        <span className="p-1 rounded-full bg-pink-100/70 text-pink-500">
+                            <SlidersHorizontal className="w-4 h-4" />
+                        </span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Riwayat dan pencatatan penyesuaian stok opname fisik gudang.
+                    </p>
+                </div>
 
-                <Button asChild className="btn-gradient border-0">
+                <Button asChild className="btn-gradient border-0 px-4 py-2 text-xs sm:text-sm">
                     <Link href="/adjustment/add" className="flex items-center">
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-1.5 h-4 w-4" />
                         New Adjustment
                     </Link>
                 </Button>
@@ -207,13 +264,13 @@ export default function InventoryAdjustmentPage() {
 
             {/* ERROR */}
             {errorMessage && (
-                <div className="flex items-center gap-2 p-4 rounded-md bg-red-50 border border-red-200 text-red-700">
-                    <AlertCircle className="h-5 w-5" />
-                    <p className="flex-1 text-sm">{errorMessage}</p>
+                <div className="flex items-center gap-2 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 shadow-xs">
+                    <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+                    <p className="flex-1 text-sm font-medium">{errorMessage}</p>
                     <Button
                         size="sm"
                         variant="outline"
-                        className="border-red-300 text-red-600"
+                        className="rounded-full border-rose-300 text-rose-600 hover:bg-rose-100"
                         onClick={fetchData}
                     >
                         Retry
@@ -222,7 +279,7 @@ export default function InventoryAdjustmentPage() {
             )}
 
             {/* TABLE */}
-            <div className="enhanced-card p-6">
+            <div className="enhanced-card p-6 shadow-sm border border-pink-100/80">
                 <DataTable
                     columns={columns}
                     data={data}
@@ -230,6 +287,7 @@ export default function InventoryAdjustmentPage() {
                     loading={loading}
                     pageIndex={pageIndex}
                     pageSize={pageSize}
+                    searchPlaceholder="Cari riwayat adjustment..."
                     haveFilter
                     filterComponent={
                         <FilterBuilder

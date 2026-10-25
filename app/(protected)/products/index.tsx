@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import type { ColumnDef, SortingState } from "@tanstack/react-table"
-import { ArrowUpDown, Plus, Upload } from "lucide-react"
+import { ArrowUpDown, Plus, Upload, Sparkles, Package } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -24,58 +24,113 @@ interface Product {
   status?: string
 }
 
-// ===================== COLUMNS =====================
+// ===================== COLUMNS (SOFT LUXURY PILLS) =====================
 const columns: ColumnDef<Product>[] = [
   {
     accessorKey: "cardNumber",
     header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
         Card Number
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+        {row.getValue("cardNumber") || "—"}
+      </span>
     ),
   },
   {
     accessorKey: "productName",
     header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
         Product Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <div className="font-semibold text-slate-800 hover:text-pink-600 transition-colors">
+        {row.getValue("productName")}
+      </div>
     ),
   },
   {
     accessorKey: "category",
     header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
         Category
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-50 text-pink-700 border border-pink-200/60">
+        {row.getValue("category") || "Uncategorized"}
+      </span>
     ),
   },
   {
     accessorKey: "partNumber",
     header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
         Part Number
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <span className="text-slate-600 font-mono text-xs">
+        {row.getValue("partNumber") || "—"}
+      </span>
     ),
   },
   {
     accessorKey: "stock",
     header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
         Stock
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
     ),
     cell: ({ row }) => {
       const stock = row.getValue("stock") as number
+      const isHigh = stock > 50
+      const isMed = stock > 20
       return (
-        <Badge variant={stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive"}>
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+            isHigh
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+              : isMed
+              ? "bg-amber-50 text-amber-700 border border-amber-200/80"
+              : "bg-rose-50 text-rose-700 border border-rose-200/80 font-bold"
+          }`}
+        >
           {stock}
-        </Badge>
+        </span>
       )
     },
   },
@@ -84,28 +139,34 @@ const columns: ColumnDef<Product>[] = [
     header: ({ column }) => (
       <Button
         variant="ghost"
+        size="sm"
+        className="font-medium text-slate-600 hover:text-pink-600 hover:bg-pink-50/60 rounded-lg px-2 -ml-2"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Status
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
       </Button>
     ),
     cell: ({ row }) => {
-      const status = row.getValue("status") as string
+      const status = (row.getValue("status") as string) || "active"
+      const isActive = status.toLowerCase() === "active"
 
-      if (status === "active") {
-        return <Badge variant="default">Active</Badge>
-      }
-
-      if (status === "passive" || status === "inactive") {
-        return (
-          <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
-            Passive
-          </Badge>
-        )
-      }
-
-      return <Badge variant="secondary">{status}</Badge>
+      return (
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            isActive
+              ? "bg-pink-50 text-pink-700 border border-pink-200/80"
+              : "bg-slate-100 text-slate-600 border border-slate-200"
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isActive ? "bg-pink-500" : "bg-slate-400"
+            }`}
+          />
+          {isActive ? "Active" : "Inactive"}
+        </span>
+      )
     },
   },
 ]
@@ -155,7 +216,7 @@ export const productFilterFields: FieldOption[] = [
     type: "date",
     valueType: "date",
   },
-];
+]
 
 // ===================== MAIN COMPONENT =====================
 export default function ProductsPage() {
@@ -166,36 +227,35 @@ export default function ProductsPage() {
   const [pageIndex, setPageIndex] = React.useState(0)
   const [pageSize, setPageSize] = React.useState(10)
   const [search, setSearch] = React.useState("")
-  const [filters, setFilters] = React.useState<any[]>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [loading, setLoading] = React.useState(false)
   const [openImport, setOpenImport] = React.useState(false)
-  const token = localStorage.getItem("token");
+  const [filters, setFilters] = React.useState<any[]>([])
 
   // ===================== FETCH DATA =====================
   const fetchData = async () => {
-    setLoading(true)
     try {
-      const sortField = sorting[0]?.id ?? "cardNumber"
-      const sortOrder = sorting[0]?.desc ? "desc" : "asc"
+      setLoading(true)
 
+      const sort = sorting[0]
+
+      // Backend ProductController mengharapkan `limit`, bukan `per_page`
       const params = new URLSearchParams({
         page: String(pageIndex + 1),
         limit: String(pageSize),
         search,
-        sortField,
-        sortOrder,
       })
 
-      // 🔥 INI YANG KURANG
+      if (sort) {
+        params.append("sortField", sort.id)
+        params.append("sortOrder", sort.desc ? "desc" : "asc")
+      }
+
       if (filters.length > 0) {
         params.append("filters", JSON.stringify(filters))
       }
 
-      const res = await apiFetch(`/products?${params.toString()}`, {
-        method: "GET",
-      })
-
+      const res = await apiFetch(`/products?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch products")
 
       const json = await res.json()
@@ -219,20 +279,36 @@ export default function ProductsPage() {
 
   // ===================== RENDER =====================
   return (
-    <div className="space-y-6 gradient-bg min-h-screen p-6">
+    <div className="space-y-6 min-h-screen p-2 sm:p-4 max-w-7xl mx-auto">
       {/* ===== HEADER ===== */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-          Products
-        </h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setOpenImport(true)}>
-            <Upload className="mr-2 h-4 w-4" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+              Products Catalogue
+            </h1>
+            <span className="p-1 rounded-full bg-pink-100/70 text-pink-500">
+              <Package className="w-4 h-4" />
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Kelola master data produk, nomor kartu, kode part, dan pemantauan stok barang.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            onClick={() => setOpenImport(true)}
+            className="rounded-full bg-white/90 hover:bg-pink-50/70 border border-pink-200/80 text-slate-700 shadow-xs hover:border-pink-300 px-4 py-2 text-xs sm:text-sm font-medium transition-all"
+          >
+            <Upload className="mr-1.5 h-4 w-4 text-pink-500" />
             Import XLSX
           </Button>
-          <Button asChild className="btn-gradient border-0">
+
+          <Button asChild className="btn-gradient border-0 px-4 py-2 text-xs sm:text-sm">
             <Link href="/products/add">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-1.5 h-4 w-4" />
               Add Product
             </Link>
           </Button>
@@ -240,7 +316,7 @@ export default function ProductsPage() {
       </div>
 
       {/* ===== DATA TABLE ===== */}
-      <div className="enhanced-card p-6">
+      <div className="enhanced-card p-6 shadow-sm border border-pink-100/80">
         <DataTable
           columns={columns}
           data={data}
@@ -254,14 +330,14 @@ export default function ProductsPage() {
               fields={productFilterFields}
               value={filters}
               onApply={(val) => {
-                setFilters(val);
-                setPageIndex(0);
+                setFilters(val)
+                setPageIndex(0)
               }}
             />
           }
           haveFilterExport={false}
           linkExport="/products/export"
-          searchPlaceholder="Search products..."
+          searchPlaceholder="Cari produk berdasarkan nama, kode..."
           onSearchChange={(val) => {
             setPageIndex(0)
             setSearch(val)
@@ -271,7 +347,6 @@ export default function ProductsPage() {
             setPageIndex(newPage)
             setPageSize(newSize)
           }}
-
           onSortingChange={setSorting}
           onRowClick={handleRowClick}
         />

@@ -1,14 +1,30 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Edit, Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Save,
+  Trash2,
+  Edit,
+  Plus,
+  X,
+  Calendar,
+  Building2,
+  Warehouse as WarehouseIcon,
+  Layers,
+  Sparkles,
+  Truck,
+  CheckCircle2,
+  AlertTriangle,
+  FileSpreadsheet,
+  Package,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -27,38 +43,26 @@ import CustomerSelectModal from "@/components/selectors/CustomerSelectModal";
 import ProductSelectModal from "@/components/selectors/ProductSelectModal";
 import { apiFetch } from "@/lib/api";
 
-// ==== TYPES DARI API (MIRIP INCOMING) ====
-
 type APIItem = {
-  product: any;
   id: number;
-  productId: number;
+  productId?: number;
+  product_id?: number;
   productName?: string | null;
   partNumber?: string | null;
   quantity: number;
-  unitPrice: number;
+  unitPrice?: number;
+  unit_price?: number;
   totalPrice?: number;
+  total_price?: number;
   notes?: string | null;
+  product?: {
+    id: number;
+    name?: string;
+    part_number?: string;
+    unit_price?: number;
+    stock?: number;
+  } | null;
 };
-
-type APIPayload = {
-  id: number;
-  transaction_date: string;
-  customerId?: number | null;
-  customer?: { id: number; name?: string } | null;
-  warehouseId?: number | null;
-  warehouse?: { id: number; name?: string } | null;
-  notes?: string | null;
-  status: string;
-  totalItems: number;
-  totalValue: number;
-  items: APIItem[];
-  createdBy?: { id: number; name?: string } | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-type StatusType = "Draft" | "Done" | string;
 
 type ItemRow = {
   id: string;
@@ -67,12 +71,13 @@ type ItemRow = {
   partNumber?: string | null;
   quantity: number;
   unitPrice: number;
+  stock?: number;
   notes?: string | null;
 };
 
 export default function OutgoingEditPage({ id }: { id: string }) {
   const router = useRouter();
-  const idParam = id
+  const idParam = id;
 
   const [loading, setLoading] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -86,13 +91,13 @@ export default function OutgoingEditPage({ id }: { id: string }) {
     customerId: null as number | null,
     customerName: "",
     notes: "",
-    status: "Draft" as StatusType,
+    status: "Draft",
+    createdByName: "-",
+    createdAt: "",
   });
 
   // ITEMS
   const [items, setItems] = React.useState<ItemRow[]>([]);
-
-  // VALIDATION ERRORS
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   // MODALS
@@ -101,65 +106,77 @@ export default function OutgoingEditPage({ id }: { id: string }) {
   const [openProductModal, setOpenProductModal] = React.useState(false);
   const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
 
-  // ================== LOAD DETAIL (GET) ==================
-  React.useEffect(() => {
-    if (!idParam) return;
+  // ================== FETCH DETAIL ==================
+  const fetchDetail = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/outgoing-transactions/${idParam}`, {
+        method: "GET",
+      });
 
-    const fetchDetail = async () => {
-      setLoading(true);
-      try {
-        const res = await apiFetch(`/outgoing-transactions/${idParam}`,
-          { method: "GET" }
-        );
-        if (!res.ok) throw new Error("Failed to fetch transaction");
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Failed to load");
+      if (!res.ok) throw new Error("Gagal memuat detail transaksi keluar");
 
-        const d: APIPayload = json.data;
+      const json = await res.json();
+      const trx = json.data;
 
-        setHeader({
-          transaction_date: d.transaction_date
-            ? new Date(d.transaction_date).toISOString().split("T")[0]
-            : new Date().toISOString().split("T")[0],
-          warehouseId: d.warehouse?.id ?? null,
-          warehouseName: d.warehouse?.name ?? "",
-          customerId: d.customer?.id ?? null,
-          customerName: d.customer?.name ?? "",
-          notes: d.notes ?? "",
-          status: d.status ?? "Draft",
-        });
-
-        const mapped = (d.items || []).map((it) => ({
-          id: String(it.id),
-          productId: it.product.id ?? null,
-          productName: it.product?.name ?? null,
-          partNumber: it.product.part_number ?? null,
-          quantity: it.quantity ?? 0,
-          unitPrice: Number(it.product.unit_price ?? 0),
-          notes: it.notes ?? null,
-        })) as ItemRow[];
-
-        setItems(mapped.length ? mapped : [
-          {
-            id: Date.now().toString(),
-            productId: null,
-            productName: null,
-            partNumber: null,
-            quantity: 0,
-            unitPrice: 0,
-            notes: "",
-          },
-        ]);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to load outgoing transaction.");
-      } finally {
-        setLoading(false);
+      // Map header
+      const rawDate = trx.transaction_date || trx.transactionDate || "";
+      let formattedDate = "";
+      if (rawDate) {
+        formattedDate = rawDate.split("T")[0];
       }
-    };
 
-    fetchDetail();
+      setHeader({
+        transaction_date: formattedDate,
+        warehouseId: trx.warehouse_id ?? trx.warehouseId ?? trx.warehouse?.id ?? null,
+        warehouseName: trx.warehouse?.name ?? "-",
+        customerId: trx.customer_id ?? trx.customerId ?? trx.customer?.id ?? null,
+        customerName: trx.customer?.name ?? "-",
+        notes: trx.notes ?? "",
+        status: trx.status ?? "Draft",
+        createdByName: trx.createdBy?.name ?? trx.created_by?.name ?? "Admin",
+        createdAt: trx.created_at || trx.createdAt || "",
+      });
+
+      // Map items
+      const rawItems: APIItem[] = trx.items || [];
+      const mapped: ItemRow[] = rawItems.map((it) => ({
+        id: String(it.id || Date.now() + Math.random()),
+        productId: it.productId ?? it.product_id ?? it.product?.id ?? null,
+        productName: it.productName ?? it.product?.name ?? "-",
+        partNumber: it.partNumber ?? it.product?.part_number ?? "-",
+        quantity: Number(it.quantity || 0),
+        unitPrice: Number(it.unitPrice ?? it.unit_price ?? it.product?.unit_price ?? 0),
+        stock: it.product?.stock,
+        notes: it.notes ?? "",
+      }));
+
+      setItems(
+        mapped.length
+          ? mapped
+          : [
+              {
+                id: Date.now().toString(),
+                productId: null,
+                productName: null,
+                partNumber: null,
+                quantity: 1,
+                unitPrice: 0,
+                notes: "",
+              },
+            ]
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Gagal memuat data transaksi keluar.");
+    } finally {
+      setLoading(false);
+    }
   }, [idParam]);
+
+  React.useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
 
   // ================== HELPERS ==================
   const addItem = () =>
@@ -170,7 +187,7 @@ export default function OutgoingEditPage({ id }: { id: string }) {
         productId: null,
         productName: null,
         partNumber: null,
-        quantity: 0,
+        quantity: 1,
         unitPrice: 0,
         notes: "",
       },
@@ -189,23 +206,29 @@ export default function OutgoingEditPage({ id }: { id: string }) {
     );
 
   // MODAL CALLBACKS
-  const onWarehouseSelect = (w: { id: number; name: string }) =>
+  const onWarehouseSelect = (w: { id: number; name: string }) => {
     setHeader((h) => ({ ...h, warehouseId: w.id, warehouseName: w.name }));
+    setOpenWarehouseModal(false);
+  };
 
-  const onCustomerSelect = (c: { id: number; name: string }) =>
+  const onCustomerSelect = (c: { id: number; name: string }) => {
     setHeader((h) => ({ ...h, customerId: c.id, customerName: c.name }));
+    setOpenCustomerModal(false);
+  };
 
   const onProductSelect = (p: {
     id: number;
     productName: string;
     partNumber?: string | null;
     unitPrice?: number;
+    stock?: number;
   }) => {
     if (!activeItemId) return;
     updateItem(activeItemId, "productId", p.id);
     updateItem(activeItemId, "productName", p.productName ?? null);
     updateItem(activeItemId, "partNumber", p.partNumber ?? null);
     updateItem(activeItemId, "unitPrice", Number(p.unitPrice ?? 0));
+    updateItem(activeItemId, "stock", p.stock);
     setActiveItemId(null);
     setOpenProductModal(false);
   };
@@ -213,17 +236,15 @@ export default function OutgoingEditPage({ id }: { id: string }) {
   // ================== VALIDATION ==================
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!header.transaction_date) errs.transaction_date = "Date is required";
-    if (!header.warehouseId) errs.warehouse = "Warehouse is required";
-    if (!header.customerId) errs.customer = "Customer is required";
+    if (!header.transaction_date) errs.transaction_date = "Tanggal wajib diisi";
+    if (!header.warehouseId) errs.warehouse = "Gudang asal wajib dipilih";
+    if (!header.customerId) errs.customer = "Customer penerima wajib dipilih";
 
-    // Jika Draft, validate item detail
     if (header.status === "Draft") {
       items.forEach((it, idx) => {
-        if (!it.productId)
-          errs[`item_${idx}_product`] = "Product is required";
+        if (!it.productId) errs[`item_${idx}_product`] = "Pilih produk";
         if (!it.quantity || it.quantity <= 0)
-          errs[`item_${idx}_quantity`] = "Quantity must be > 0";
+          errs[`item_${idx}_quantity`] = "Jumlah minimal 1";
       });
     }
 
@@ -237,26 +258,22 @@ export default function OutgoingEditPage({ id }: { id: string }) {
       (s, it) => s + Number(it.quantity || 0),
       0
     );
-
     const totalValue = items.reduce(
-      (s, it) =>
-        s + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      (s, it) => s + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     );
-
     return { totalItems, totalValue };
   }, [items]);
 
   // ================== SAVE DRAFT ==================
   const handleSave = async () => {
-    // kalau belum masuk mode edit → aktifkan dulu
     if (!isEditing) {
       setIsEditing(true);
       return;
     }
 
     if (!validate()) {
-      alert("Periksa validasi sebelum menyimpan.");
+      alert("Periksa kembali inputan form yang ditandai merah.");
       return;
     }
 
@@ -264,13 +281,11 @@ export default function OutgoingEditPage({ id }: { id: string }) {
     try {
       let payload: any = {};
 
-      // Jika status sudah Done: hanya boleh ubah tanggal + notes
       if (header.status === "Done") {
         payload.transaction_date = header.transaction_date;
         payload.notes = header.notes;
         payload.status = header.status;
       } else {
-        // Draft: boleh update semua
         payload = {
           warehouseId: header.warehouseId,
           customerId: header.customerId,
@@ -293,16 +308,14 @@ export default function OutgoingEditPage({ id }: { id: string }) {
 
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
-        console.error("PUT error", json);
-        throw new Error(json?.error || "Failed to update");
+        throw new Error(json?.error || "Gagal memperbarui transaksi keluar");
       }
 
-      alert("Berhasil menyimpan.");
+      alert("✅ Perubahan transaksi keluar berhasil disimpan!");
       setIsEditing(false);
-      router.push(`/outgoing/${idParam}`);
-    } catch (err) {
-      console.error(err);
-      alert("Gagal menyimpan transaksi.");
+      fetchDetail();
+    } catch (err: any) {
+      alert(`❌ Error: ${err.message || "Gagal menyimpan perubahan"}`);
     } finally {
       setLoading(false);
     }
@@ -316,12 +329,12 @@ export default function OutgoingEditPage({ id }: { id: string }) {
     }
 
     if (header.status !== "Draft") {
-      alert("Hanya transaksi Draft yang bisa disubmit.");
+      alert("Hanya transaksi status DRAFT yang dapat diselesaikan.");
       return;
     }
 
     if (!validate()) {
-      alert("Periksa validasi sebelum submit.");
+      alert("Periksa validasi sebelum menyelesaikan transaksi.");
       return;
     }
 
@@ -348,15 +361,14 @@ export default function OutgoingEditPage({ id }: { id: string }) {
 
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
-        console.error("Submit error", json);
-        throw new Error(json?.error || "Failed to submit");
+        throw new Error(json?.error || "Gagal menyelesaikan transaksi");
       }
 
-      alert("Transaksi berhasil disubmit (Done).");
-      router.push(`/outgoing/${idParam}`);
-    } catch (err) {
-      console.error(err);
-      alert("Gagal submit transaksi.");
+      alert("✅ Transaksi keluar berhasil diselesaikan (DONE) dan stok terpotong!");
+      setIsEditing(false);
+      fetchDetail();
+    } catch (err: any) {
+      alert(`❌ Error: ${err.message || "Gagal submit transaksi"}`);
     } finally {
       setLoading(false);
     }
@@ -371,71 +383,96 @@ export default function OutgoingEditPage({ id }: { id: string }) {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
-        throw new Error(json?.error || "Failed to delete");
+        throw new Error(json?.error || "Gagal menghapus transaksi keluar");
       }
-      alert("Transaksi dihapus.");
+      alert("✅ Transaksi keluar berhasil dihapus!");
       router.push("/outgoing");
-    } catch (err) {
-      console.error(err);
-      alert("Gagal menghapus transaksi.");
+    } catch (err: any) {
+      alert(`❌ Error: ${err.message || "Gagal menghapus"}`);
     } finally {
       setDeleting(false);
     }
   };
 
   const isDone = header.status === "Done";
-  const canEditHeader = isEditing; // tapi disable field tertentu kalau Done
+  const canEditHeader = isEditing;
   const canEditItems = isEditing && !isDone;
 
-  // ================== RENDER ==================
   return (
-    <div className="space-y-6 gradient-bg min-h-screen p-6">
+    <div className="space-y-6 min-h-screen p-2 sm:p-4 max-w-6xl mx-auto">
       {/* HEADER PAGE */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 text-pink-600" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-pink-100/60">
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/outgoing")}
+            className="rounded-full bg-white/80 hover:bg-white border-pink-200 hover:border-pink-300 text-pink-600 transition-all shadow-xs"
+          >
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-            Outgoing Transaction #{idParam}
-          </h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+                Transaksi Keluar #OUT-{String(idParam).padStart(4, "0")}
+              </h1>
+              <Badge
+                className={
+                  isDone
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-semibold text-xs px-2.5 py-0.5"
+                    : "bg-amber-50 text-amber-700 border-amber-200 shadow-none font-semibold text-xs px-2.5 py-0.5"
+                }
+              >
+                {isDone ? "SELESAI (DONE)" : "DRAFT"}
+              </Badge>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+              Detail transaksi pengeluaran barang dan riwayat alokasi stok gudang
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 self-end sm:self-auto flex-wrap gap-y-2">
           {!isEditing ? (
             <Button
               onClick={() => setIsEditing(true)}
-              className="btn-gradient border-0"
+              className="btn-gradient rounded-full px-4 text-xs font-semibold shadow-md border-0"
             >
-              <Edit className="mr-2 h-4 w-4" /> Edit
+              <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Transaksi
             </Button>
           ) : (
             <>
               <Button
                 variant="outline"
-                onClick={() => setIsEditing(false)}
-                className="bg-white/80"
+                size="sm"
+                onClick={() => {
+                  setIsEditing(false);
+                  fetchDetail();
+                }}
+                className="bg-white/80 rounded-full border-pink-200 text-gray-600 text-xs px-4"
               >
-                Cancel
+                Batal
               </Button>
 
               <Button
                 onClick={handleSave}
                 disabled={loading}
-                className="btn-gradient border-0"
+                size="sm"
+                className="btn-gradient rounded-full px-4 text-xs font-semibold shadow-md border-0"
               >
-                <Save className="mr-2 h-4 w-4" />
-                {loading ? "Saving..." : "Save Draft"}
+                <Save className="mr-1.5 h-3.5 w-3.5" />
+                {loading ? "Menyimpan..." : "Simpan Perubahan"}
               </Button>
 
-              {header.status === "Draft" && (
+              {!isDone && (
                 <Button
                   onClick={handleSubmitDone}
                   disabled={loading}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-4 text-xs font-semibold shadow-md border-0"
                 >
-                  <Save className="mr-2 h-4 w-4" />
-                  {loading ? "Submitting..." : "Submit (Done)"}
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                  {loading ? "Memproses..." : "Selesaikan (Done)"}
                 </Button>
               )}
             </>
@@ -445,29 +482,34 @@ export default function OutgoingEditPage({ id }: { id: string }) {
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
+                size="sm"
                 disabled={deleting}
-                className="bg-gradient-to-r from-red-500 to-red-600 border-0"
+                className="bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-full px-3.5 text-xs font-semibold shadow-none"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Hapus
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-white/95 backdrop-blur-sm border-pink-200">
+            <AlertDialogContent className="bg-white/95 backdrop-blur-md border-pink-200 rounded-2xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Deleting this transaction{" "}
-                  {isDone ? "will rollback stock and " : ""}
-                  permanently remove it.
+                <AlertDialogTitle className="text-gray-900">
+                  Konfirmasi Hapus Transaksi?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-600 text-xs sm:text-sm">
+                  Menghapus transaksi ini{" "}
+                  {isDone ? "akan membatalkan (rollback) pengurangan stok gudang dan " : ""}
+                  menghapus data secara permanen dari basis data.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-full text-xs">
+                  Batal
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
-                  className="bg-gradient-to-r from-red-500 to-red-600"
+                  className="bg-rose-600 hover:bg-rose-700 text-white rounded-full text-xs font-semibold"
                 >
-                  Delete
+                  Ya, Hapus Transaksi
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -476,281 +518,371 @@ export default function OutgoingEditPage({ id }: { id: string }) {
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Items</div>
-          <div className="text-2xl font-bold text-pink-600">
-            {totals.totalItems}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="enhanced-card p-4 sm:p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Total Unit
+            </div>
+            <div className="text-xl sm:text-2xl font-extrabold text-pink-600 mt-1">
+              {totals.totalItems} Unit
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-pink-100/70 flex items-center justify-center text-pink-600">
+            <Layers className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Total Value</div>
-          <div className="text-2xl font-bold text-red-600">
-            {totals.totalValue.toFixed(2)}
+        <div className="enhanced-card p-4 sm:p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Total Nilai Barang
+            </div>
+            <div className="text-xl sm:text-2xl font-extrabold text-rose-600 mt-1">
+              Rp {totals.totalValue.toLocaleString("id-ID")}
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-100/70 flex items-center justify-center text-rose-600">
+            <Sparkles className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Status</div>
-          <Badge
-            variant={isDone ? "default" : "secondary"}
-            className="mt-1"
-          >
-            {header.status}
-          </Badge>
+        <div className="enhanced-card p-4 sm:p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status Stok
+            </div>
+            <div className="mt-1">
+              <span className="text-xs font-bold text-gray-800">
+                {isDone ? "Stok Berkurang (Locked)" : "Draft (Pending Cut)"}
+              </span>
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-purple-100/70 flex items-center justify-center text-purple-600">
+            <Truck className="w-5 h-5" />
+          </div>
         </div>
 
-        <div className="enhanced-card p-4">
-          <div className="text-sm text-gray-600">Date</div>
-          <div className="text-lg font-medium text-gray-800">
-            {header.transaction_date}
+        <div className="enhanced-card p-4 sm:p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Tanggal Transaksi
+            </div>
+            <div className="text-sm sm:text-base font-bold text-gray-800 mt-1">
+              {header.transaction_date || "-"}
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-pink-100/70 flex items-center justify-center text-pink-600">
+            <Calendar className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       {/* HEADER FORM */}
-      <div className="enhanced-card p-6">
-        <h2 className="text-xl font-semibold mb-4">
-          Transaction Information
-        </h2>
+      <div className="enhanced-card p-4 sm:p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-pink-100/60">
+          <Building2 className="w-4 h-4 text-pink-500" />
+          <h2 className="text-sm sm:text-base font-bold text-gray-800">
+            Informasi Dokumen Pengeluaran
+          </h2>
+        </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4">
-            {/* DATE */}
-            <div className="grid gap-2">
-              <Label>Date {isEditing && "*"}</Label>
-              <Input
-                type="date"
-                value={header.transaction_date}
-                onChange={(e) =>
-                  setHeader((h) => ({
-                    ...h,
-                    transaction_date: e.target.value,
-                  }))
-                }
-                className={errors.transaction_date ? "border-red-500" : ""}
-                disabled={!canEditHeader}
-              />
-              {errors.transaction_date && (
-                <p className="text-red-500 text-sm">
-                  {errors.transaction_date}
-                </p>
-              )}
-            </div>
-
-            {/* WAREHOUSE */}
-            <div className="grid gap-2">
-              <Label>
-                Warehouse{" "}
-                {isEditing && header.status === "Draft" ? "*" : ""}
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input value={header.warehouseName} readOnly />
-                <Button
-                  onClick={() =>
-                    isEditing &&
-                    header.status === "Draft" &&
-                    setOpenWarehouseModal(true)
-                  }
-                  disabled={!isEditing || header.status !== "Draft"}
-                >
-                  Select
-                </Button>
-              </div>
-              {errors.warehouse && (
-                <p className="text-red-500 text-sm">
-                  {errors.warehouse}
-                </p>
-              )}
-            </div>
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          {/* TANGGAL */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700">
+              Tanggal Keluar {isEditing && <span className="text-rose-500">*</span>}
+            </Label>
+            <Input
+              type="date"
+              value={header.transaction_date}
+              onChange={(e) =>
+                setHeader((h) => ({
+                  ...h,
+                  transaction_date: e.target.value,
+                }))
+              }
+              className={`bg-white/80 rounded-xl text-xs sm:text-sm ${
+                errors.transaction_date ? "border-red-500" : "border-pink-200/80"
+              }`}
+              disabled={!canEditHeader}
+            />
+            {errors.transaction_date && (
+              <p className="text-red-500 text-xs">{errors.transaction_date}</p>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {/* CUSTOMER */}
-            <div className="grid gap-2">
-              <Label>
-                Customer{" "}
-                {isEditing && header.status === "Draft" ? "*" : ""}
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input value={header.customerName} readOnly />
-                <Button
-                  onClick={() =>
-                    isEditing &&
-                    header.status === "Draft" &&
-                    setOpenCustomerModal(true)
-                  }
-                  disabled={!isEditing || header.status !== "Draft"}
-                >
-                  Select
-                </Button>
-              </div>
-              {errors.customer && (
-                <p className="text-red-500 text-sm">
-                  {errors.customer}
-                </p>
+          {/* CUSTOMER */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700">
+              Customer / Penerima{" "}
+              {isEditing && header.status === "Draft" && (
+                <span className="text-rose-500">*</span>
               )}
-            </div>
-
-            {/* NOTES */}
-            <div className="grid gap-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={header.notes}
-                onChange={(e) =>
-                  setHeader((h) => ({ ...h, notes: e.target.value }))
-                }
-                rows={3}
-                disabled={!canEditHeader}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                value={header.customerName}
+                readOnly
+                className="bg-white/80 rounded-xl text-xs sm:text-sm border-pink-200/80"
               />
+              <Button
+                type="button"
+                onClick={() => setOpenCustomerModal(true)}
+                disabled={!isEditing || header.status !== "Draft"}
+                className="btn-gradient rounded-xl px-4 text-xs font-medium shrink-0 border-0 disabled:opacity-50"
+              >
+                Pilih
+              </Button>
             </div>
+            {errors.customer && (
+              <p className="text-red-500 text-xs">{errors.customer}</p>
+            )}
+          </div>
+
+          {/* GUDANG ASAL */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700">
+              Gudang Asal{" "}
+              {isEditing && header.status === "Draft" && (
+                <span className="text-rose-500">*</span>
+              )}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                value={header.warehouseName}
+                readOnly
+                className="bg-white/80 rounded-xl text-xs sm:text-sm border-pink-200/80"
+              />
+              <Button
+                type="button"
+                onClick={() => setOpenWarehouseModal(true)}
+                disabled={!isEditing || header.status !== "Draft"}
+                className="btn-gradient rounded-xl px-4 text-xs font-medium shrink-0 border-0 disabled:opacity-50"
+              >
+                Pilih
+              </Button>
+            </div>
+            {errors.warehouse && (
+              <p className="text-red-500 text-xs">{errors.warehouse}</p>
+            )}
+          </div>
+
+          {/* CATATAN */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700">
+              Catatan / Info Pengiriman
+            </Label>
+            <Textarea
+              value={header.notes}
+              onChange={(e) =>
+                setHeader((h) => ({ ...h, notes: e.target.value }))
+              }
+              rows={2}
+              placeholder="Tambahkan catatan keterangan..."
+              className="bg-white/80 rounded-xl text-xs sm:text-sm border-pink-200/80"
+              disabled={!canEditHeader}
+            />
           </div>
         </div>
       </div>
 
-      {/* ITEMS */}
-      <Card className="enhanced-card">
-        <CardHeader>
-          <div className="flex justify-between items-center w-full">
-            <CardTitle>Product Items</CardTitle>
-            {canEditItems && (
-              <Button onClick={addItem}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
-            )}
+      {/* ITEMS DAFTAR BARANG */}
+      <div className="enhanced-card p-4 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-pink-100/60">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-pink-500" />
+            <h2 className="text-sm sm:text-base font-bold text-gray-800">
+              Rincian Barang yang Dikeluarkan
+            </h2>
           </div>
-        </CardHeader>
+          {canEditItems && (
+            <Button
+              type="button"
+              onClick={addItem}
+              size="sm"
+              className="rounded-full bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 text-xs font-semibold px-3"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Tambah Baris Produk
+            </Button>
+          )}
+        </div>
 
-        <CardContent className="space-y-4">
+        {isDone && (
+          <div className="p-3 bg-pink-50/60 border border-pink-200/80 rounded-xl flex items-center gap-2 text-xs text-pink-800">
+            <AlertTriangle className="w-4 h-4 text-pink-600 shrink-0" />
+            <span>
+              Transaksi sudah berstatus <strong>SELESAI (DONE)</strong>. Daftar barang dan kuantitas dikunci untuk menjaga integritas stok riil di gudang.
+            </span>
+          </div>
+        )}
+
+        <div className="space-y-3">
           {items.map((it, idx) => (
             <div
               key={it.id}
-              className="p-4 border border-pink-200 rounded-lg bg-white/50 space-y-4"
+              className="p-3 sm:p-4 rounded-2xl bg-white/70 border border-pink-200/70 space-y-3 shadow-2xs"
             >
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Product {idx + 1}</h4>
+              <div className="flex items-center justify-between pb-1 border-b border-pink-50">
+                <span className="font-bold text-xs text-pink-600 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center text-[10px]">
+                    {idx + 1}
+                  </span>
+                  Barang #{idx + 1}
+                </span>
                 {canEditItems && items.length > 1 && (
                   <Button
-                    variant="outline"
+                    type="button"
+                    variant="ghost"
                     size="sm"
                     onClick={() => removeItem(it.id)}
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 rounded-full"
                   >
-                    <X className="h-4 w-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {/* PRODUCT SELECT */}
-                <div className="grid gap-2">
-                  <Label>
-                    Product{" "}
-                    {isEditing && header.status === "Draft" ? "*" : ""}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
+                {/* Produk */}
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs font-medium text-gray-600">
+                    Produk {canEditItems && <span className="text-rose-500">*</span>}
                   </Label>
-                  <div className="flex items-center gap-2">
-                    <Input value={it.productName ?? ""} readOnly />
-                    <Button
-                      onClick={() => {
-                        if (canEditItems) {
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={it.productName ?? ""}
+                      readOnly
+                      placeholder="Pilih produk..."
+                      className={`bg-white rounded-xl text-xs h-9 ${
+                        errors[`item_${idx}_product`]
+                          ? "border-red-500"
+                          : "border-pink-200/80"
+                      }`}
+                    />
+                    {canEditItems && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
                           setActiveItemId(it.id);
                           setOpenProductModal(true);
-                        }
-                      }}
-                      disabled={!canEditItems}
-                    >
-                      Select
-                    </Button>
+                        }}
+                        className="btn-gradient rounded-xl px-3 h-9 text-xs shrink-0 border-0"
+                      >
+                        Pilih
+                      </Button>
+                    )}
                   </div>
                   {errors[`item_${idx}_product`] && (
-                    <p className="text-red-500 text-sm">
+                    <p className="text-red-500 text-[11px]">
                       {errors[`item_${idx}_product`]}
                     </p>
                   )}
                 </div>
 
-                {/* PART NUMBER */}
-                <div className="grid gap-2">
-                  <Label>Part Number</Label>
-                  <Input value={it.partNumber ?? ""} readOnly />
-                </div>
-
-                {/* QTY */}
-                <div className="grid gap-2">
-                  <Label>
-                    Quantity{" "}
-                    {isEditing && header.status === "Draft" ? "*" : ""}
+                {/* Part Number */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-600">
+                    Part Number
                   </Label>
                   <Input
+                    value={it.partNumber ?? "-"}
+                    readOnly
+                    className="bg-gray-50/80 rounded-xl text-xs h-9 text-gray-500 border-pink-100"
+                  />
+                </div>
+
+                {/* Quantity */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-gray-600">
+                      Jumlah {canEditItems && <span className="text-rose-500">*</span>}
+                    </Label>
+                    {it.stock !== undefined && (
+                      <span className="text-[10px] text-gray-400 font-semibold">
+                        Stok: {it.stock}
+                      </span>
+                    )}
+                  </div>
+                  <Input
                     type="number"
+                    min={1}
                     value={it.quantity}
                     onChange={(e) => {
                       if (canEditItems) {
                         updateItem(
                           it.id,
                           "quantity",
-                          Number(e.target.value || 0)
+                          parseInt(e.target.value) || 0
                         );
                       }
                     }}
                     disabled={!canEditItems}
+                    className={`bg-white rounded-xl text-xs h-9 ${
+                      errors[`item_${idx}_quantity`]
+                        ? "border-red-500"
+                        : "border-pink-200/80"
+                    }`}
                   />
                   {errors[`item_${idx}_quantity`] && (
-                    <p className="text-red-500 text-sm">
+                    <p className="text-red-500 text-[11px]">
                       {errors[`item_${idx}_quantity`]}
                     </p>
                   )}
                 </div>
 
-                {/* UNIT PRICE */}
-                <div className="grid gap-2">
-                  <Label>Unit Price</Label>
+                {/* Harga Satuan */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-600">
+                    Harga Satuan (Rp)
+                  </Label>
                   <Input
                     type="number"
-                    step="0.01"
+                    min={0}
                     value={it.unitPrice}
                     onChange={(e) => {
                       if (canEditItems) {
                         updateItem(
                           it.id,
                           "unitPrice",
-                          Number(e.target.value || 0)
+                          parseFloat(e.target.value) || 0
                         );
                       }
                     }}
                     disabled={!canEditItems}
+                    className="bg-white rounded-xl text-xs h-9 border-pink-200/80"
                   />
                 </div>
               </div>
 
-              {/* NOTES PER ITEM */}
-              <div className="grid gap-2">
-                <Label>Notes</Label>
-                <Input
-                  value={it.notes ?? ""}
-                  onChange={(e) => {
-                    if (canEditItems) {
-                      updateItem(it.id, "notes", e.target.value);
-                    }
-                  }}
-                  disabled={!canEditItems}
-                />
-              </div>
-
-              {/* SUBTOTAL */}
-              <div className="flex justify-end">
-                <div className="text-sm text-gray-600">
+              {/* Catatan Item & Subtotal */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-pink-50/70">
+                <div className="flex-1 max-w-md">
+                  <Input
+                    placeholder="Catatan khusus baris produk..."
+                    value={it.notes ?? ""}
+                    onChange={(e) => {
+                      if (canEditItems) {
+                        updateItem(it.id, "notes", e.target.value);
+                      }
+                    }}
+                    disabled={!canEditItems}
+                    className="bg-white/60 rounded-lg text-xs h-8 border-pink-100"
+                  />
+                </div>
+                <div className="text-xs text-gray-600 font-medium self-end sm:self-auto">
                   Subtotal:{" "}
-                  <span className="font-medium text-red-600">
-                    ${(it.quantity * it.unitPrice).toFixed(2)}
+                  <span className="font-bold text-rose-600">
+                    Rp {((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString("id-ID")}
                   </span>
                 </div>
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* MODALS */}
       <WarehouseSelectModal

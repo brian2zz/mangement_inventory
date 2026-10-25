@@ -187,10 +187,10 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="gradient-sidebar text-sidebar-foreground w-[min(85vw,18rem)] p-0 [&>button]:hidden border-r-0 shadow-2xl overflow-hidden"
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              "--sidebar-width": "min(85vw, 18rem)",
             } as React.CSSProperties
           }
           side={side}

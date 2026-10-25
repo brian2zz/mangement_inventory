@@ -63,7 +63,6 @@ export function DataTableV2<TData, TValue>({
   const [search, setSearch] = React.useState("");
   const [showFilter, setShowFilter] = React.useState(false);
   const [visibleColumns, setVisibleColumns] = React.useState<string[]>(columns.map((c) => String(c.accessorKey)));
-  // const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([]);
   const [exportOpen, setExportOpen] = React.useState(false);
   const [pageInput, setPageInput] = React.useState(pageIndex + 1);
 
@@ -73,27 +72,23 @@ export function DataTableV2<TData, TValue>({
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  // 🔎 Debounced search
+  // Debounced search
   React.useEffect(() => {
     const timeout = setTimeout(() => onSearchChange(search), 400);
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const [dateRange, setDateRange] = React.useState<{
-    from: Date;
-    to: Date;
-  }>({
-    from: subYears(new Date(), 1), // ⏪ default 1 tahun ke belakang
+  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>({
+    from: subYears(new Date(), 1),
     to: new Date(),
   });
 
-  // 📤 Export ke Excel
+  // Export ke Excel
   const exportToExcel = (range: { from: Date; to: Date }) => {
     if (!linkExport) return
 
     let url = `${process.env.NEXT_PUBLIC_API_URL}${linkExport}`
 
-    // 🔹 ambil sorting dari table (kalau ada)
     const sortField = sorting?.[0]?.id ?? "id"
     const sortOrder = sorting?.[0]?.desc ? "desc" : "asc"
 
@@ -103,7 +98,6 @@ export function DataTableV2<TData, TValue>({
       sortOrder,
     })
 
-    // 🔑 PRIORITY: filterExport
     if (filterExport && Object.keys(filterExport).length > 0) {
       Object.entries(filterExport).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
@@ -112,14 +106,12 @@ export function DataTableV2<TData, TValue>({
       })
     }
 
-    // 📅 filter tanggal (optional)
     if (haveFilterExport) {
       params.append("from", range.from.toISOString().slice(0, 10))
       params.append("to", range.to.toISOString().slice(0, 10))
     }
 
     url += `?${params.toString()}`
-    console.log("Export URL:", url)
     window.open(url, "_blank")
   }
 
@@ -133,15 +125,14 @@ export function DataTableV2<TData, TValue>({
     return { from, to };
   };
 
-  // 🖨️ Print 
-  const printTable = () => window.print();
-
-  // 🧮 Sorting toggle
   const handleSortClick = (accessorKey: string) => {
-    const current = sorting[0];
-    let newSorting;
+    const current = sorting?.[0];
+    let newSorting: { id: string; desc: boolean }[];
+
     if (!current || current.id !== accessorKey) {
       newSorting = [{ id: accessorKey, desc: false }];
+    } else if (!current.desc) {
+      newSorting = [{ id: accessorKey, desc: true }];
     } else {
       newSorting = [{ id: accessorKey, desc: !current.desc }];
     }
@@ -156,7 +147,34 @@ export function DataTableV2<TData, TValue>({
     onPaginationChange(page - 1, pageSize);
   };
 
-  // 🌈 UI helper
+  const printTable = () => {
+    const printContent = document.getElementById("printable-table");
+    if (!printContent) return;
+
+    const win = window.open("", "", "width=900,height=650");
+    if (!win) return;
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Print Table</title>
+          <style>
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  };
+
   const renderSortIcon = (accessorKey: string) => {
     const current = sorting?.[0];
     if (!current || current.id !== accessorKey) return null;
@@ -169,15 +187,15 @@ export function DataTableV2<TData, TValue>({
   return (
     <div className="w-full">
       {/* 🔍 Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 py-4">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-pink-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-pink-400" />
             <Input
               placeholder={searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 max-w-sm gradient-input focus:ring-pink-200"
+              className="pl-8 w-full sm:w-64 md:w-80 gradient-input focus:ring-pink-200"
             />
           </div>
 
@@ -186,10 +204,10 @@ export function DataTableV2<TData, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                className="ml-2 bg-white/80 hover:bg-pink-50 border-pink-200 text-gray-700 hover:text-gray-900"
+                className="bg-white/80 hover:bg-pink-50 border-pink-200 text-gray-700 hover:text-gray-900 rounded-lg"
                 onClick={() => setShowFilter(true)}
               >
-                <Filter className="mr-2 h-4 w-4" />
+                <Filter className="mr-1.5 h-3.5 w-3.5" />
                 Filter
               </Button>
 
@@ -203,32 +221,33 @@ export function DataTableV2<TData, TValue>({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
           <Button
             variant="outline"
             size="sm"
-            className="btn-gradient border-0"
+            className="btn-gradient border-0 text-xs rounded-lg"
             onClick={() => {
               if (haveFilterExport) {
-                setExportOpen(true); // buka popup
+                setExportOpen(true);
               } else {
-                exportToExcel(dateRange); // langsung download
+                exportToExcel(dateRange);
               }
             }}
           >
-            <Download className="mr-2 h-4 w-4" /> Export
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Export
           </Button>
-          <Button variant="outline" size="sm" onClick={printTable} className="btn-gradient border-0">
-            <Printer className="mr-2 h-4 w-4" /> Print
+          <Button variant="outline" size="sm" onClick={printTable} className="btn-gradient border-0 text-xs rounded-lg">
+            <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="ml-auto bg-white/80 hover:bg-pink-50 border-pink-200 text-gray-700 hover:text-gray-900"
+                size="sm"
+                className="bg-white/80 hover:bg-pink-50 border-pink-200 text-gray-700 hover:text-gray-900 text-xs rounded-lg"
               >
-                Columns <ChevronDown className="ml-2 h-4 w-4" />
+                Columns <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white/95 backdrop-blur-sm border-pink-200">
@@ -254,7 +273,7 @@ export function DataTableV2<TData, TValue>({
       </div>
 
       {/* 🏷 Table */}
-      <div className="gradient-table overflow-x-auto rounded-xl border border-pink-100">
+      <div id="printable-table" className="gradient-table overflow-x-auto rounded-xl border border-pink-100">
         <Table>
           <TableHeader>
             <TableRow className="border-pink-100 bg-gradient-to-r from-pink-50 to-rose-50">
@@ -297,11 +316,8 @@ export function DataTableV2<TData, TValue>({
                   {columns
                     .filter((col) => visibleColumns.includes(String(col.accessorKey)))
                     .map((col) => (
-                      <TableCell
-                        key={String(col.accessorKey)}
-                        className="whitespace-normal break-words max-w-[300px]"
-                      >
-                        {row[col.accessorKey as string] ?? "-"}
+                      <TableCell key={String(col.accessorKey)}>
+                        {columnCellRenderer(col, row)}
                       </TableCell>
                     ))}
                 </TableRow>
@@ -329,10 +345,10 @@ export function DataTableV2<TData, TValue>({
           <p className="text-sm font-medium text-gray-600">Rows per page</p>
           <Select
             value={String(pageSize)}
-            onValueChange={(value) => onPaginationChange(pageIndex, Number(value))}
+            onValueChange={(value) => onPaginationChange(0, Number(value))}
           >
-            <SelectTrigger className="h-8 w-[70px] gradient-input">
-              <SelectValue placeholder={pageSize} />
+            <SelectTrigger className="h-8 w-[76px] gradient-input">
+              <SelectValue placeholder={String(pageSize)} />
             </SelectTrigger>
             <SelectContent side="top" className="bg-white/95 backdrop-blur-sm border-pink-200">
               {[10, 20, 30, 40, 50].map((ps) => (
@@ -397,7 +413,6 @@ export function DataTableV2<TData, TValue>({
           left-1/2
           translate-x-[-50%]
           translate-y-0
-
           max-w-5xl
           w-full
           max-h-[90vh]
@@ -448,18 +463,23 @@ export function DataTableV2<TData, TValue>({
               <Button
                 className="btn-gradient"
                 onClick={() => {
-                  exportToExcel(dateRange);
+                  exportToExcel(normalizeDateRange(dateRange));
                   setExportOpen(false);
                 }}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Download
+                Download Excel
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
-
   );
+}
+
+function columnCellRenderer(col: any, row: any) {
+  if (col.cell) {
+    return flexRender(col.cell, { row: { getValue: (key: string) => row[key], original: row } as any });
+  }
+  return row[col.accessorKey as string] ?? "-";
 }

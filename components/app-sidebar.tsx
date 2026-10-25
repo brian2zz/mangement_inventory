@@ -16,6 +16,7 @@ import {
   LogOut,
   User,
   SlidersHorizontal,
+  Sparkles,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -30,6 +31,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/components/auth-provider"
 
@@ -110,6 +113,18 @@ const reportItems = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { user, logout, hasPermission } = useAuth()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  // Normalisasi pathname: hilangkan trailing slash agar "/categories/" cocok dengan "/categories"
+  const normalizedPath = pathname ? pathname.replace(/\/+$/, "") || "/" : "/"
+
+  const isItemActive = (url: string) => {
+    const cleanUrl = url.replace(/\/+$/, "") || "/"
+    if (cleanUrl === "/") {
+      return normalizedPath === "/"
+    }
+    return normalizedPath === cleanUrl || normalizedPath.startsWith(`${cleanUrl}/`)
+  }
 
   // Filter menu items based on user role
   const filteredMenuItems = menuItems.filter((item) => {
@@ -118,118 +133,186 @@ export function AppSidebar() {
   })
 
   const filteredTransactionItems = transactionItems.filter((item) => {
-    if (!hasPermission("staff")) return false // Viewers can't access transactions
+    if (!hasPermission("staff")) return false
     return true
   })
 
   return (
-    <Sidebar className="gradient-sidebar border-r-0">
-      <SidebarContent className="bg-transparent">
+    <Sidebar className="gradient-sidebar border-r-0 shadow-xl shadow-pink-500/5">
+      {/* Brand Header */}
+      <SidebarHeader className="p-4 pb-2">
+        <div className="flex items-center gap-3 px-2 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
+          <div className="w-9 h-9 rounded-xl bg-white/25 flex items-center justify-center shadow-xs">
+            <Sparkles className="w-5 h-5 text-white animate-pulse" />
+          </div>
+          <div>
+            <span className="font-extrabold text-base text-white tracking-wide block leading-none">
+              INVENTRA
+            </span>
+            <span className="text-[10px] text-white/70 font-medium tracking-widest uppercase">
+              Workspace
+            </span>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className="bg-transparent px-2">
         {/* Main Menu */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
+          <SidebarGroupLabel className="text-white/60 font-semibold text-[11px] uppercase tracking-wider mb-1.5 px-3">
             Main Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {filteredMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
-                  >
-                    <Link href={item.url}>
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                      <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                      <span className="font-medium">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-1.5">
+              {filteredMenuItems.map((item) => {
+                const active = isItemActive(item.url)
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      className={`group transition-all duration-300 rounded-2xl px-3 py-2.5 relative overflow-hidden font-medium text-sm ${
+                        active
+                          ? "bg-white text-pink-600 shadow-md shadow-pink-900/10 font-bold"
+                          : "text-white/80 hover:bg-white/15 hover:text-white"
+                      }`}
+                    >
+                      <Link
+                        href={item.url}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false)
+                        }}
+                      >
+                        <item.icon
+                          className={`w-4 h-4 transition-transform duration-300 group-hover:scale-110 ${
+                            active ? "text-pink-600" : "text-white/90"
+                          }`}
+                        />
+                        <span>{item.title}</span>
+                        {active && (
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-pink-500" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         {/* Transactions Menu */}
         {filteredTransactionItems.length > 0 && (
-          <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="text-white/60 font-semibold text-[11px] uppercase tracking-wider mb-1.5 px-3">
               Transactions
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
-                {filteredTransactionItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.url}
-                      className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
-                    >
-                      <Link href={item.url}>
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                        <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                        <span className="font-medium">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className="space-y-1.5">
+                {filteredTransactionItems.map((item) => {
+                  const active = isItemActive(item.url)
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        className={`group transition-all duration-300 rounded-2xl px-3 py-2.5 relative overflow-hidden font-medium text-sm ${
+                          active
+                            ? "bg-white text-pink-600 shadow-md shadow-pink-900/10 font-bold"
+                            : "text-white/80 hover:bg-white/15 hover:text-white"
+                        }`}
+                      >
+                        <Link
+                        href={item.url}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false)
+                        }}
+                      >
+                          <item.icon
+                            className={`w-4 h-4 transition-transform duration-300 group-hover:scale-110 ${
+                              active ? "text-pink-600" : "text-white/90"
+                            }`}
+                          />
+                          <span>{item.title}</span>
+                          {active && (
+                            <span className="ml-auto w-1.5 h-1.5 rounded-full bg-pink-500" />
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
         {/* Reports Menu */}
-        <SidebarGroup className="mt-6">
-          <SidebarGroupLabel className="text-white/70 font-semibold text-xs uppercase tracking-wider mb-2 px-2">
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-white/60 font-semibold text-[11px] uppercase tracking-wider mb-1.5 px-3">
             Reports
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              {reportItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    className="group text-white/80 hover:bg-white/15 hover:text-white transition-all duration-300 rounded-xl data-[active=true]:bg-white/25 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-white/10 px-3 py-2.5 relative overflow-hidden"
-                  >
-                    <Link href={item.url}>
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                      <item.icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                      <span className="font-medium">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-1.5">
+              {reportItems.map((item) => {
+                const active = isItemActive(item.url)
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      className={`group transition-all duration-300 rounded-2xl px-3 py-2.5 relative overflow-hidden font-medium text-sm ${
+                        active
+                          ? "bg-white text-pink-600 shadow-md shadow-pink-900/10 font-bold"
+                          : "text-white/80 hover:bg-white/15 hover:text-white"
+                      }`}
+                    >
+                      <Link
+                        href={item.url}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false)
+                        }}
+                      >
+                        <item.icon
+                          className={`w-4 h-4 transition-transform duration-300 group-hover:scale-110 ${
+                            active ? "text-pink-600" : "text-white/90"
+                          }`}
+                        />
+                        <span>{item.title}</span>
+                        {active && (
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-pink-500" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
       {/* User Profile & Logout */}
-      <SidebarFooter className="bg-transparent border-t border-white/10 mt-auto">
-        <SidebarMenu>
+      <SidebarFooter className="bg-transparent border-t border-white/10 p-3 mt-auto">
+        <SidebarMenu className="space-y-2">
           <SidebarMenuItem>
-            <div className="px-3 py-4 text-white/90">
-              <div className="flex items-center space-x-3 bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
-                <div className="w-10 h-10 bg-gradient-to-br from-white/30 to-white/10 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/20">
-                  <User className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate text-white">{user?.name}</div>
-                  <div className="text-white/60 text-xs capitalize font-medium">{user?.role}</div>
-                </div>
+            <div className="flex items-center space-x-3 bg-white/15 rounded-2xl p-2.5 backdrop-blur-md border border-white/15">
+              <div className="w-9 h-9 bg-gradient-to-br from-white/40 to-white/10 rounded-xl flex items-center justify-center shadow-md">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-xs truncate text-white">{user?.name}</div>
+                <div className="text-white/70 text-[10px] capitalize font-medium">{user?.role}</div>
               </div>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={logout}
-              className="group text-white/80 hover:bg-red-500/20 hover:text-white transition-all duration-300 rounded-xl w-full mx-2 px-3 py-2.5 border border-white/10 hover:border-red-400/30 relative overflow-hidden"
+              className="group text-white/80 hover:bg-white/20 hover:text-white transition-all duration-300 rounded-xl w-full px-3 py-2 border border-white/10 hover:border-white/30 text-xs font-semibold"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              <LogOut className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 relative z-10" />
-              <span className="font-medium relative z-10">Logout</span>
+              <LogOut className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
+              <span>Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
