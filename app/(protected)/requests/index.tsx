@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import { formatRupiah } from "@/lib/utils";
 
 type RequestStatus = "Pending" | "Partial" | "Fulfilled";
@@ -69,20 +70,7 @@ export default function ProductRequestsPage() {
   const [sortField, setSortField] = React.useState<string>("request_date");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   const columns = React.useMemo<ColumnDef<ProductRequest>[]>(
     () => [
       {
@@ -172,7 +160,7 @@ export default function ProductRequestsPage() {
       },
       {
         accessorKey: "totalPrice",
-        header: "Total Nilai",
+        header: () => <div className="text-center w-full">Total Nilai</div>,
         cell: ({ row }) => {
           const val = row.getValue("totalPrice") as string;
           return (

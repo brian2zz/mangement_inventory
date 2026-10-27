@@ -11,6 +11,7 @@ import {
   Clock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -47,12 +48,13 @@ const columns: ColumnDef<DashboardRow>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     ),
-    cell: ({ row }) => <div className="font-medium">{row.getValue("date")}</div>,
+    cell: ({ row }) => <div className="font-medium text-xs whitespace-nowrap">{formatDate(row.getValue("date"))}</div>,
   },
   {
     accessorKey: "partNumber",
@@ -60,10 +62,16 @@ const columns: ColumnDef<DashboardRow>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Part Number
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <div className="font-mono text-xs text-gray-600 max-w-[140px] break-words">
+        {row.getValue("partNumber") || "-"}
+      </div>
     ),
   },
   {
@@ -72,29 +80,47 @@ const columns: ColumnDef<DashboardRow>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Product Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     ),
+    cell: ({ row }) => (
+      <div className="font-semibold text-xs text-gray-800 max-w-[200px] break-words leading-snug">
+        {row.getValue("productName") || "-"}
+      </div>
+    ),
   },
-  { accessorKey: "source", header: "Source" },
+  {
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => (
+      <div className="text-xs text-gray-700 max-w-[140px] break-words">
+        {row.getValue("source") || "-"}
+      </div>
+    ),
+  },
   {
     accessorKey: "stockIn",
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Stock In
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <Badge variant={(row.getValue("stockIn") as number) > 0 ? "default" : "secondary"}>
-        {row.getValue("stockIn")}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const val = Number(row.getValue("stockIn")) || 0;
+      return (
+        <span className={`font-mono text-xs font-semibold ${val > 0 ? "text-emerald-600" : "text-gray-400"}`}>
+          {val > 0 ? `+${val}` : val}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "stockOut",
@@ -102,37 +128,66 @@ const columns: ColumnDef<DashboardRow>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Stock Out
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     ),
+    cell: ({ row }) => {
+      const val = Number(row.getValue("stockOut")) || 0;
+      return (
+        <span className={`font-mono text-xs font-semibold ${val > 0 ? "text-rose-600" : "text-gray-400"}`}>
+          {val > 0 ? `-${val}` : val}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "destination",
+    header: "Destination",
     cell: ({ row }) => (
-      <Badge variant={(row.getValue("stockOut") as number) > 0 ? "destructive" : "secondary"}>
-        {row.getValue("stockOut")}
-      </Badge>
+      <div className="text-xs text-gray-700 max-w-[180px] break-words leading-snug">
+        {row.getValue("destination") || "-"}
+      </div>
     ),
   },
-  { accessorKey: "destination", header: "Destination" },
   {
     accessorKey: "stock",
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-xs p-0 font-semibold"
       >
         Current Stock
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     ),
     cell: ({ row }) => {
-      const stock = row.getValue("stock") as number;
-      const variant =
-        stock > 50 ? "default" : stock > 20 ? "secondary" : "destructive";
-      return <Badge variant={variant}>{stock}</Badge>;
+      const stock = Number(row.getValue("stock")) || 0;
+      return (
+        <span className="font-mono text-xs font-bold text-gray-800">
+          {stock}
+        </span>
+      );
     },
   },
-  { accessorKey: "remarks", header: "Remarks" },
+  {
+    accessorKey: "remarks",
+    header: "Remarks",
+    cell: ({ row }) => {
+      const val = row.getValue("remarks") as string;
+      if (!val || val === "-" || val.trim() === "") {
+        return <span className="text-gray-300">-</span>;
+      }
+      return (
+        <div className="text-xs text-gray-600 max-w-[220px] break-words leading-relaxed whitespace-normal">
+          {val}
+        </div>
+      );
+    },
+  },
 ];
 
 /* =======================
@@ -370,7 +425,7 @@ export default function Dashboard() {
       </div>
 
       {/* TABLE REKAP */}
-      <div className="enhanced-card p-6">
+      <div className="enhanced-card p-3 sm:p-6 w-full max-w-full overflow-hidden">
         <DataTableV2
           columns={columns}
           data={data}

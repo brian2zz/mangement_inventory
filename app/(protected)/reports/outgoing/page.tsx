@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 
 interface OutgoingReportRow {
   id: number;
@@ -45,20 +46,7 @@ export default function OutgoingProductReportPage() {
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   const columns = React.useMemo<ColumnDef<OutgoingReportRow>[]>(
     () => [
       {
@@ -142,7 +130,7 @@ export default function OutgoingProductReportPage() {
       },
       {
         accessorKey: "quantityOut",
-        header: "Jumlah Keluar",
+        header: () => <div className="text-center w-full">Jumlah Keluar</div>,
         cell: ({ row }) => {
           const qty = row.getValue("quantityOut") as number;
           return (
@@ -157,10 +145,10 @@ export default function OutgoingProductReportPage() {
         accessorKey: "currentStock",
         header: "Sisa Stok",
         cell: ({ row }) => {
-          const val = row.getValue("currentStock") as number;
+          const val = Number(row.getValue("currentStock")) || 0;
           return (
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-              {val ?? 0} Unit
+            <span className="font-mono text-xs font-bold text-gray-800">
+              {val} Unit
             </span>
           );
         },

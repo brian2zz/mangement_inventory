@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import { formatRupiah } from "@/lib/utils";
 
 interface RequestReportRow {
@@ -50,20 +51,7 @@ export default function RequestReportPage() {
 
   const abortRef = React.useRef<AbortController | null>(null);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr || dateStr === "-") return "-";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   const columns = React.useMemo<ColumnDef<RequestReportRow>[]>(
     () => [
       {
@@ -115,23 +103,21 @@ export default function RequestReportPage() {
       },
       {
         accessorKey: "requestedQuantity",
-        header: "Diminta",
+        header: () => <div className="text-center w-full">Diminta</div>,
         cell: ({ row }) => {
           const qty = row.getValue("requestedQuantity") as number;
           return (
-            <span className="text-xs font-medium text-gray-700">
-              {qty ?? 0} Unit
-            </span>
+            <div className="text-center text-xs font-medium text-gray-700">{qty ?? 0} Unit</div>
           );
         },
       },
       {
         accessorKey: "fulfilledQuantity",
-        header: "Dipenuhi",
+        header: () => <div className="text-center w-full">Dipenuhi</div>,
         cell: ({ row }) => {
           const qty = row.getValue("fulfilledQuantity") as number;
           return (
-            <div className="flex items-center gap-1 text-xs font-bold text-emerald-700">
+            <div className="flex items-center justify-center gap-1 text-xs font-bold text-emerald-700">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               <span>{qty ?? 0} Unit</span>
             </div>
@@ -140,11 +126,11 @@ export default function RequestReportPage() {
       },
       {
         accessorKey: "totalPrice",
-        header: "Total Nilai",
+        header: () => <div className="text-center w-full">Total Nilai</div>,
         cell: ({ row }) => {
           const val = row.getValue("totalPrice") as string;
           return (
-            <span className="font-bold text-xs text-rose-600">
+            <span className="inline-block w-full text-center font-bold text-xs text-rose-600">
               {val || "Rp 0"}
             </span>
           );

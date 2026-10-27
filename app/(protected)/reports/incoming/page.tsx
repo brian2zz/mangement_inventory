@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableV2 as DataTable } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 
 interface IncomingReport {
   id: number;
@@ -47,20 +48,7 @@ export default function IncomingProductReportPage() {
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   const columns = React.useMemo<ColumnDef<IncomingReport>[]>(
     () => [
       {
@@ -154,25 +142,24 @@ export default function IncomingProductReportPage() {
       },
       {
         accessorKey: "quantityIn",
-        header: "Jumlah Masuk",
+        header: () => <div className="text-center w-full">Jumlah Masuk</div>,
         cell: ({ row }) => {
-          const qty = row.getValue("quantityIn") as number;
+          const qty = Number(row.getValue("quantityIn")) || 0;
           return (
-            <div className="flex items-center gap-1 text-xs font-bold text-emerald-700">
-              <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-500" />
-              <span>+{qty ?? 0}</span>
-            </div>
+            <span className="font-mono text-xs font-semibold text-emerald-600">
+              +{qty}
+            </span>
           );
         },
       },
       {
         accessorKey: "currentStock",
-        header: "Sisa Stok Saat Ini",
+        header: () => <div className="text-center w-full">Sisa Stok Saat Ini</div>,
         cell: ({ row }) => {
-          const val = row.getValue("currentStock") as number;
+          const val = Number(row.getValue("currentStock")) || 0;
           return (
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-              {val ?? 0} Unit
+            <span className="font-mono text-xs font-bold text-gray-800">
+              {val} Unit
             </span>
           );
         },

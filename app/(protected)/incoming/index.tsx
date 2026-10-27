@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { FilterBuilder, type FieldOption } from "@/components/filters/FilterBuilder";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 
 interface IncomingRow {
   id: number;
@@ -84,20 +85,7 @@ export default function IncomingPage() {
     fetchData();
   }, [pageIndex, pageSize, search, sorting, filters]);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   const columns = useMemo<ColumnDef<IncomingRow>[]>(() => [
     {
       accessorKey: "id",
@@ -170,14 +158,13 @@ export default function IncomingPage() {
     },
     {
       accessorKey: "totalItems",
-      header: "Total Unit",
+      header: () => <div className="text-center w-full">Total Unit</div>,
       cell: ({ row }) => {
-        const items = row.getValue("totalItems") as number;
+        const items = Number(row.getValue("totalItems")) || 0;
         return (
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-pink-400" />
-            <span className="font-bold text-gray-900 text-xs">{items ?? 0} Unit</span>
-          </div>
+          <span className="font-mono text-xs font-bold text-gray-800">
+            {items} Unit
+          </span>
         );
       },
     },

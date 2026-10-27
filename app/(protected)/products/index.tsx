@@ -116,19 +116,9 @@ const columns: ColumnDef<Product>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      const stock = row.getValue("stock") as number
-      const isHigh = stock > 50
-      const isMed = stock > 20
+      const stock = Number(row.getValue("stock")) || 0
       return (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-            isHigh
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-              : isMed
-              ? "bg-amber-50 text-amber-700 border border-amber-200/80"
-              : "bg-rose-50 text-rose-700 border border-rose-200/80 font-bold"
-          }`}
-        >
+        <span className="font-mono text-xs font-bold text-slate-700">
           {stock}
         </span>
       )

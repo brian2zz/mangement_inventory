@@ -273,8 +273,8 @@ export function DataTableV2<TData, TValue>({
       </div>
 
       {/* 🏷 Table */}
-      <div id="printable-table" className="gradient-table overflow-x-auto rounded-xl border border-pink-100">
-        <Table>
+      <div id="printable-table" className="gradient-table w-full max-w-full overflow-x-auto rounded-xl border border-pink-100 shadow-2xs">
+        <Table className="w-full table-auto">
           <TableHeader>
             <TableRow className="border-pink-100 bg-gradient-to-r from-pink-50 to-rose-50">
               {columns
@@ -282,7 +282,7 @@ export function DataTableV2<TData, TValue>({
                 .map((col) => (
                   <TableHead
                     key={String(col.accessorKey)}
-                    className="font-semibold text-gray-700 cursor-pointer select-none"
+                    className={`font-semibold text-gray-700 cursor-pointer select-none text-xs whitespace-nowrap py-3 px-3 ${isNumericColumn(String(col.accessorKey)) ? "text-center" : "text-left"}`}
                     onClick={() => handleSortClick(String(col.accessorKey))}
                   >
                     {flexRender(col.header, {})}
@@ -299,7 +299,7 @@ export function DataTableV2<TData, TValue>({
                   {columns
                     .filter((col) => visibleColumns.includes(String(col.accessorKey)))
                     .map((col) => (
-                      <TableCell key={String(col.accessorKey)}>
+                      <TableCell key={String(col.accessorKey)} className={isNumericColumn(String(col.accessorKey)) ? "text-center" : "text-left"}>
                         <div className="h-4 w-3/4 animate-pulse bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded" />
                       </TableCell>
                     ))}
@@ -475,6 +475,18 @@ export function DataTableV2<TData, TValue>({
       </Dialog>
     </div>
   );
+}
+
+
+const NUMERIC_COLUMNS = new Set([
+  "id", "stock", "quantity", "quantityIn", "quantityOut", "currentStock",
+  "totalItems", "productCount", "stockIn", "stockOut", "previousStock",
+  "newStock", "requestedQuantity", "fulfilledQuantity", "totalRequestedQuantity",
+  "totalFulfilledQuantity", "unitPrice", "totalPrice", "price"
+]);
+
+function isNumericColumn(key: string): boolean {
+  return NUMERIC_COLUMNS.has(key);
 }
 
 function columnCellRenderer(col: any, row: any) {

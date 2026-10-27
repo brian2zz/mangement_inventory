@@ -137,13 +137,7 @@ export default function CategoriesPage() {
       cell: ({ row }) => {
         const count = Number(row.getValue("productCount")) || 0;
         return (
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-              count > 0
-                ? "bg-pink-50 text-pink-700 border border-pink-200/80"
-                : "bg-slate-100 text-slate-500 border border-slate-200"
-            }`}
-          >
+          <span className="font-mono text-xs font-bold text-slate-700">
             {count} Produk
           </span>
         );

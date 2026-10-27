@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { FilterBuilder, type FieldOption } from "@/components/filters/FilterBuilder";
 import { apiFetch } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 interface OutgoingRow {
@@ -102,30 +103,7 @@ export default function OutgoingProductsPage() {
     fetchData();
   }, [pageIndex, pageSize, search, sorting, filters]);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    try {
-      const parts = dateStr.split("-");
-      if (parts.length === 3 && parts[0].length === 2) {
-        // format dd-mm-yyyy dari backend
-        const d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-        return d.toLocaleDateString("id-ID", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        });
-      }
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
+  
   // TABLE COLUMNS
   const columns = useMemo<ColumnDef<OutgoingRow>[]>(
     () => [
@@ -200,11 +178,11 @@ export default function OutgoingProductsPage() {
       },
       {
         accessorKey: "totalItems",
-        header: "Total Unit",
+        header: () => <div className="text-center w-full">Total Unit</div>,
         cell: ({ row }) => {
           const items = row.getValue("totalItems") as number;
           return (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-pink-400" />
               <span className="font-bold text-gray-900 text-xs">{items ?? 0} Unit</span>
             </div>

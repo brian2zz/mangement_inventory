@@ -174,18 +174,10 @@ export default function InventoryAdjustmentPage() {
             header: () => <span className="font-medium text-slate-600 text-xs uppercase">Qty</span>,
             cell: ({ row }) => {
                 const isOut = row.original.movementType === "adjustment_decrease"
-                // Nilai absolut agar tanda minus tidak double jika backend sudah mengembalikan angka negatif
-                const rawQty = row.getValue("quantity") as number
+                const rawQty = Number(row.getValue("quantity")) || 0
                 const absQty = Math.abs(rawQty)
-
                 return (
-                    <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            isOut
-                                ? "bg-rose-100 text-rose-700 border border-rose-300"
-                                : "bg-emerald-100 text-emerald-700 border border-emerald-300"
-                        }`}
-                    >
+                    <span className={`font-mono text-xs font-bold ${isOut ? "text-rose-600" : "text-emerald-600"}`}>
                         {isOut ? `-${absQty}` : `+${absQty}`}
                     </span>
                 )

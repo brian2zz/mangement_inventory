@@ -59,21 +59,21 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="min-h-screen flex flex-col bg-transparent">
+      <SidebarInset className="min-h-screen flex flex-col bg-transparent min-w-0 max-w-full overflow-x-clip">
         {/* STICKY TOP NAVBAR */}
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 gradient-header px-4 sm:px-6">
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 gradient-header px-4 sm:px-6 w-full">
           <SidebarTrigger className="-ml-1 hover:bg-pink-100/60 text-slate-700 transition-all duration-300 rounded-lg p-1.5" />
           
-          <div className="flex items-center gap-2 flex-1">
-            <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent truncate">
               Inventra
             </h1>
-            <span className="hidden sm:inline-block text-xs font-medium text-slate-400 border-l border-pink-200 pl-2.5">
+            <span className="hidden sm:inline-block text-xs font-medium text-slate-400 border-l border-pink-200 pl-2.5 truncate">
               Management Inventory
             </span>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 shrink-0">
             <div className="text-right hidden sm:block">
               <span className="text-xs font-semibold text-slate-700 block">{user.name}</span>
               <span className="text-[11px] font-medium text-pink-500 capitalize block">{user.role || "Staff"}</span>
@@ -88,8 +88,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* MAIN SCROLLABLE CONTENT */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
-          {children}
+        <main className="flex-1 p-3 sm:p-6 w-full min-w-0 max-w-full">
+          <div className="w-full max-w-full min-w-0">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>
