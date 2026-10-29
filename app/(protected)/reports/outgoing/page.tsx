@@ -81,7 +81,7 @@ export default function OutgoingProductReportPage() {
               <div className="font-semibold text-gray-800 text-xs">
                 {row.getValue("productName") || "-"}
               </div>
-              <div className="text-[10px] text-gray-400 font-mono">
+              <div className="text-[10px] text-gray-500">
                 {row.original.partNumber && row.original.partNumber !== "-"
                   ? `PN: ${row.original.partNumber}`
                   : ""}
@@ -130,14 +130,13 @@ export default function OutgoingProductReportPage() {
       },
       {
         accessorKey: "quantityOut",
-        header: () => <div className="text-center w-full">Jumlah Keluar</div>,
+        header: "Jumlah Keluar",
         cell: ({ row }) => {
-          const qty = row.getValue("quantityOut") as number;
+          const qty = Number(row.getValue("quantityOut")) || 0;
           return (
-            <div className="flex items-center gap-1 text-xs font-bold text-rose-700">
-              <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
-              <span>-{qty ?? 0}</span>
-            </div>
+            <span className="text-xs font-semibold text-rose-600">
+              {qty}
+            </span>
           );
         },
       },
@@ -147,7 +146,7 @@ export default function OutgoingProductReportPage() {
         cell: ({ row }) => {
           const val = Number(row.getValue("currentStock")) || 0;
           return (
-            <span className="font-mono text-xs font-bold text-gray-800">
+            <span className="text-xs font-bold text-gray-800">
               {val} Unit
             </span>
           );

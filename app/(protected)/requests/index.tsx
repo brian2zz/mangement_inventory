@@ -160,7 +160,7 @@ export default function ProductRequestsPage() {
       },
       {
         accessorKey: "totalPrice",
-        header: () => <div className="text-center w-full">Total Nilai</div>,
+        header: "Total Nilai",
         cell: ({ row }) => {
           const val = row.getValue("totalPrice") as string;
           return (

@@ -177,7 +177,7 @@ export default function InventoryAdjustmentPage() {
                 const rawQty = Number(row.getValue("quantity")) || 0
                 const absQty = Math.abs(rawQty)
                 return (
-                    <span className={`font-mono text-xs font-bold ${isOut ? "text-rose-600" : "text-emerald-600"}`}>
+                    <span className={`text-xs font-bold ${isOut ? "text-rose-600" : "text-emerald-600"}`}>
                         {isOut ? `-${absQty}` : `+${absQty}`}
                     </span>
                 )
@@ -188,7 +188,7 @@ export default function InventoryAdjustmentPage() {
             accessorKey: "previousStock",
             header: () => <span className="font-medium text-slate-600 text-xs uppercase">Prev Stock</span>,
             cell: ({ row }) => (
-                <span className="text-slate-500 font-mono text-xs">
+                <span className="text-slate-500 text-xs">
                     {row.getValue("previousStock")}
                 </span>
             ),
@@ -198,7 +198,7 @@ export default function InventoryAdjustmentPage() {
             accessorKey: "newStock",
             header: () => <span className="font-medium text-slate-600 text-xs uppercase">New Stock</span>,
             cell: ({ row }) => (
-                <span className="font-bold text-slate-700 font-mono text-xs">
+                <span className="font-bold text-slate-700 text-xs">
                     {row.getValue("newStock")}
                 </span>
             ),

@@ -57,7 +57,7 @@ const productColumns: ColumnDef<Product>[] = [
     cell: ({ row }) => {
       const partNumber = row.getValue("partNumber") as string;
       return partNumber ? (
-        <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-pink-50/80 text-pink-700 border border-pink-200/60 shadow-xs">
+        <span className="text-xs text-gray-700">
           {partNumber}
         </span>
       ) : (

@@ -178,7 +178,7 @@ export default function OutgoingProductsPage() {
       },
       {
         accessorKey: "totalItems",
-        header: () => <div className="text-center w-full">Total Unit</div>,
+        header: "Total Unit",
         cell: ({ row }) => {
           const items = row.getValue("totalItems") as number;
           return (

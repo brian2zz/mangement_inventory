@@ -3,6 +3,7 @@
 import * as React from "react";
 import { type ColumnDef, flexRender } from "@tanstack/react-table";
 import { ChevronDown, Download, Printer, Search, Filter, ArrowUp, ArrowDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -279,16 +280,39 @@ export function DataTableV2<TData, TValue>({
             <TableRow className="border-pink-100 bg-gradient-to-r from-pink-50 to-rose-50">
               {columns
                 .filter((col) => visibleColumns.includes(String(col.accessorKey)))
-                .map((col) => (
-                  <TableHead
-                    key={String(col.accessorKey)}
-                    className={`font-semibold text-gray-700 cursor-pointer select-none text-xs whitespace-nowrap py-3 px-3 ${isNumericColumn(String(col.accessorKey)) ? "text-center" : "text-left"}`}
-                    onClick={() => handleSortClick(String(col.accessorKey))}
-                  >
-                    {flexRender(col.header, {})}
-                    {renderSortIcon(String(col.accessorKey))}
-                  </TableHead>
-                ))}
+                .map((col) => {
+                  const isNum = isNumericColumn(String(col.accessorKey));
+                  return (
+                    <TableHead
+                      key={String(col.accessorKey)}
+                      className={cn(
+                        "font-semibold text-gray-700 cursor-pointer select-none text-xs whitespace-nowrap py-3 px-3",
+                        isNum ? "text-center" : "text-left"
+                      )}
+                      onClick={() => handleSortClick(String(col.accessorKey))}
+                    >
+                      <div
+                        className={cn(
+                          "inline-flex items-center gap-1",
+                          isNum ? "w-full justify-center" : "text-left"
+                        )}
+                      >
+                        {flexRender(col.header, {
+                          column: {
+                            getIsSorted: () =>
+                              sorting?.[0]?.id === String(col.accessorKey)
+                                ? sorting[0].desc
+                                  ? "desc"
+                                  : "asc"
+                                : false,
+                            toggleSorting: () => handleSortClick(String(col.accessorKey)),
+                          },
+                        })}
+                        {renderSortIcon(String(col.accessorKey))}
+                      </div>
+                    </TableHead>
+                  );
+                })}
             </TableRow>
           </TableHeader>
 
@@ -299,8 +323,16 @@ export function DataTableV2<TData, TValue>({
                   {columns
                     .filter((col) => visibleColumns.includes(String(col.accessorKey)))
                     .map((col) => (
-                      <TableCell key={String(col.accessorKey)} className={isNumericColumn(String(col.accessorKey)) ? "text-center" : "text-left"}>
-                        <div className="h-4 w-3/4 animate-pulse bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded" />
+                      <TableCell
+                        key={String(col.accessorKey)}
+                        className={isNumericColumn(String(col.accessorKey)) ? "text-center" : "text-left"}
+                      >
+                        <div
+                          className={cn(
+                            "h-4 w-3/4 animate-pulse bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded",
+                            isNumericColumn(String(col.accessorKey)) && "mx-auto"
+                          )}
+                        />
                       </TableCell>
                     ))}
                 </TableRow>
@@ -315,11 +347,23 @@ export function DataTableV2<TData, TValue>({
                 >
                   {columns
                     .filter((col) => visibleColumns.includes(String(col.accessorKey)))
-                    .map((col) => (
-                      <TableCell key={String(col.accessorKey)}>
-                        {columnCellRenderer(col, row)}
-                      </TableCell>
-                    ))}
+                    .map((col) => {
+                      const isNum = isNumericColumn(String(col.accessorKey));
+                      return (
+                        <TableCell
+                          key={String(col.accessorKey)}
+                          className={isNum ? "text-center" : "text-left"}
+                        >
+                          {isNum ? (
+                            <div className="flex items-center justify-center">
+                              {columnCellRenderer(col, row)}
+                            </div>
+                          ) : (
+                            columnCellRenderer(col, row)
+                          )}
+                        </TableCell>
+                      );
+                    })}
                 </TableRow>
               ))
             ) : (

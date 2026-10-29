@@ -40,7 +40,7 @@ const columns: ColumnDef<Product>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+      <span className="text-slate-600 text-xs">
         {row.getValue("cardNumber") || "—"}
       </span>
     ),
@@ -97,7 +97,7 @@ const columns: ColumnDef<Product>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <span className="text-slate-600 font-mono text-xs">
+      <span className="text-slate-600 text-xs">
         {row.getValue("partNumber") || "—"}
       </span>
     ),
@@ -118,7 +118,7 @@ const columns: ColumnDef<Product>[] = [
     cell: ({ row }) => {
       const stock = Number(row.getValue("stock")) || 0
       return (
-        <span className="font-mono text-xs font-bold text-slate-700">
+        <span className="text-xs font-bold text-slate-700">
           {stock}
         </span>
       )

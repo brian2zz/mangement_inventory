@@ -480,7 +480,7 @@ export default function AddIncomingProductPage() {
                   <Input
                     value={item.partNumber ?? "-"}
                     readOnly
-                    className="rounded-xl border-pink-100 h-10 bg-gray-50/80 text-gray-500 font-mono text-xs"
+                    className="rounded-xl border-pink-100 h-10 bg-gray-50/80 text-gray-700 text-xs"
                   />
                 </div>
 

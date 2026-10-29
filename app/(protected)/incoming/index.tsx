@@ -158,11 +158,11 @@ export default function IncomingPage() {
     },
     {
       accessorKey: "totalItems",
-      header: () => <div className="text-center w-full">Total Unit</div>,
+      header: "Total Unit",
       cell: ({ row }) => {
         const items = Number(row.getValue("totalItems")) || 0;
         return (
-          <span className="font-mono text-xs font-bold text-gray-800">
+          <span className="text-xs font-bold text-gray-800">
             {items} Unit
           </span>
         );

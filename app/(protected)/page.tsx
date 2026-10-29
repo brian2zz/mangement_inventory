@@ -69,7 +69,7 @@ const columns: ColumnDef<DashboardRow>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <div className="font-mono text-xs text-gray-600 max-w-[140px] break-words">
+      <div className="text-xs text-gray-700 max-w-[140px] break-words">
         {row.getValue("partNumber") || "-"}
       </div>
     ),
@@ -115,10 +115,12 @@ const columns: ColumnDef<DashboardRow>[] = [
     ),
     cell: ({ row }) => {
       const val = Number(row.getValue("stockIn")) || 0;
-      return (
-        <span className={`font-mono text-xs font-semibold ${val > 0 ? "text-emerald-600" : "text-gray-400"}`}>
-          {val > 0 ? `+${val}` : val}
+      return val > 0 ? (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+          {val}
         </span>
+      ) : (
+        <span className="text-gray-400 text-xs">0</span>
       );
     },
   },
@@ -136,10 +138,12 @@ const columns: ColumnDef<DashboardRow>[] = [
     ),
     cell: ({ row }) => {
       const val = Number(row.getValue("stockOut")) || 0;
-      return (
-        <span className={`font-mono text-xs font-semibold ${val > 0 ? "text-rose-600" : "text-gray-400"}`}>
-          {val > 0 ? `-${val}` : val}
+      return val > 0 ? (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200/60">
+          {val}
         </span>
+      ) : (
+        <span className="text-gray-400 text-xs">0</span>
       );
     },
   },
@@ -167,7 +171,7 @@ const columns: ColumnDef<DashboardRow>[] = [
     cell: ({ row }) => {
       const stock = Number(row.getValue("stock")) || 0;
       return (
-        <span className="font-mono text-xs font-bold text-gray-800">
+        <span className="text-xs font-bold text-gray-800">
           {stock}
         </span>
       );

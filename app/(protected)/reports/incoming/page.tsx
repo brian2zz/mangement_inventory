@@ -93,7 +93,7 @@ export default function IncomingProductReportPage() {
               <div className="font-semibold text-gray-800 text-xs">
                 {row.getValue("productName") || "-"}
               </div>
-              <div className="text-[10px] text-gray-400 font-mono">
+              <div className="text-[10px] text-gray-500">
                 {row.original.partNumber && row.original.partNumber !== "-"
                   ? `PN: ${row.original.partNumber}`
                   : ""}
@@ -142,23 +142,23 @@ export default function IncomingProductReportPage() {
       },
       {
         accessorKey: "quantityIn",
-        header: () => <div className="text-center w-full">Jumlah Masuk</div>,
+        header: "Jumlah Masuk",
         cell: ({ row }) => {
           const qty = Number(row.getValue("quantityIn")) || 0;
           return (
-            <span className="font-mono text-xs font-semibold text-emerald-600">
-              +{qty}
+            <span className="text-xs font-semibold text-emerald-600">
+              {qty}
             </span>
           );
         },
       },
       {
         accessorKey: "currentStock",
-        header: () => <div className="text-center w-full">Sisa Stok Saat Ini</div>,
+        header: "Sisa Stok Saat Ini",
         cell: ({ row }) => {
           const val = Number(row.getValue("currentStock")) || 0;
           return (
-            <span className="font-mono text-xs font-bold text-gray-800">
+            <span className="text-xs font-bold text-gray-800">
               {val} Unit
             </span>
           );

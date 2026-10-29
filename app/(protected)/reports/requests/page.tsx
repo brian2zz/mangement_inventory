@@ -103,7 +103,7 @@ export default function RequestReportPage() {
       },
       {
         accessorKey: "requestedQuantity",
-        header: () => <div className="text-center w-full">Diminta</div>,
+        header: "Diminta",
         cell: ({ row }) => {
           const qty = row.getValue("requestedQuantity") as number;
           return (
@@ -113,7 +113,7 @@ export default function RequestReportPage() {
       },
       {
         accessorKey: "fulfilledQuantity",
-        header: () => <div className="text-center w-full">Dipenuhi</div>,
+        header: "Dipenuhi",
         cell: ({ row }) => {
           const qty = row.getValue("fulfilledQuantity") as number;
           return (
@@ -126,7 +126,7 @@ export default function RequestReportPage() {
       },
       {
         accessorKey: "totalPrice",
-        header: () => <div className="text-center w-full">Total Nilai</div>,
+        header: "Total Nilai",
         cell: ({ row }) => {
           const val = row.getValue("totalPrice") as string;
           return (

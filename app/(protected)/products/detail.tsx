@@ -100,13 +100,11 @@ const productColumns: ColumnDef<detailRow>[] = [
     accessorKey: "stockIn",
     header: () => <span className="font-medium text-slate-600 text-xs uppercase">Stock In</span>,
     cell: ({ row }) => {
-      const val = row.getValue("stockIn") as number
-      return val > 0 ? (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200/60">
-          +{val}
+      const val = Number(row.getValue("stockIn")) || 0
+      return (
+        <span className={`text-xs font-semibold ${val > 0 ? "text-emerald-600" : "text-slate-400"}`}>
+          {val}
         </span>
-      ) : (
-        <span className="text-slate-400 text-xs">-</span>
       )
     },
   },
@@ -114,13 +112,11 @@ const productColumns: ColumnDef<detailRow>[] = [
     accessorKey: "stockOut",
     header: () => <span className="font-medium text-slate-600 text-xs uppercase">Stock Out</span>,
     cell: ({ row }) => {
-      const val = row.getValue("stockOut") as number
-      return val > 0 ? (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200/60">
-          -{val}
+      const val = Number(row.getValue("stockOut")) || 0
+      return (
+        <span className={`text-xs font-semibold ${val > 0 ? "text-rose-600" : "text-slate-400"}`}>
+          {val}
         </span>
-      ) : (
-        <span className="text-slate-400 text-xs">-</span>
       )
     },
   },
@@ -133,7 +129,7 @@ const productColumns: ColumnDef<detailRow>[] = [
     accessorKey: "stock",
     header: () => <span className="font-medium text-slate-600 text-xs uppercase">Stock</span>,
     cell: ({ row }) => (
-      <span className="font-bold font-mono text-slate-700">
+      <span className="font-bold text-slate-700">
         {row.getValue("stock")}
       </span>
     ),
@@ -265,6 +261,7 @@ export default function ProductDetailPage({ id }: { id: string }) {
           supplierId: product.supplierId,
           unitPrice: product.unitPrice,
           reorderLevel: product.reorderLevel,
+          currentStock: product.currentStock,
           status: product.status,
         }),
       })
