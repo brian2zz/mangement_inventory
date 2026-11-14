@@ -151,18 +151,25 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+@theme inline {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   input, button, select, textarea {
-    font-family: inherit;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   body {
     background: var(--background);
     color: var(--foreground);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
   }
