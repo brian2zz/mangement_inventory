@@ -413,7 +413,7 @@ export default function OutgoingEditPage({ id }: { id: string }) {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
                 Transaksi Keluar #OUT-{String(idParam).padStart(4, "0")}
               </h1>
               <Badge
@@ -524,7 +524,7 @@ export default function OutgoingEditPage({ id }: { id: string }) {
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total Unit
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-pink-600 mt-1">
+            <div className="text-xl sm:text-2xl font-bold text-pink-600 mt-1">
               {totals.totalItems} Unit
             </div>
           </div>
@@ -538,7 +538,7 @@ export default function OutgoingEditPage({ id }: { id: string }) {
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total Nilai Barang
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-rose-600 mt-1">
+            <div className="text-xl sm:text-2xl font-bold text-rose-600 mt-1">
               Rp {totals.totalValue.toLocaleString("id-ID")}
             </div>
           </div>

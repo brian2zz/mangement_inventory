@@ -247,7 +247,7 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
                 Permintaan #{String(request.id).padStart(4, "0")}
               </h1>
               {computedStatus === "Fulfilled" ? (
@@ -356,7 +356,7 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total Diminta
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-pink-600 mt-1">
+            <div className="text-xl sm:text-2xl font-bold text-pink-600 mt-1">
               {totalRequestedQty} Unit
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total Dipenuhi
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-1">
+            <div className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">
               {totalFulfilledQty} Unit
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function ProductRequestDetailPage({ id }: { id: string }) {
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Nilai Realisasi
             </div>
-            <div className="text-lg sm:text-xl font-extrabold text-rose-600 mt-1 truncate">
+            <div className="text-lg sm:text-xl font-bold text-rose-600 mt-1 truncate">
               {formatRupiah(totalPrice)}
             </div>
           </div>

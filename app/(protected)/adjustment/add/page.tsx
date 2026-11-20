@@ -131,7 +131,7 @@ export default function AddInventoryAdjustmentPage() {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-600 via-rose-500 to-pink-500 bg-clip-text text-transparent">
                 New Stock Adjustment
               </h1>
               <span className="p-1 rounded-full bg-pink-100/70 text-pink-500">
@@ -278,7 +278,7 @@ export default function AddInventoryAdjustmentPage() {
               </div>
 
               <div
-                className={`text-base sm:text-lg font-extrabold px-3.5 py-1 rounded-full ${
+                className={`text-base sm:text-lg font-bold px-3.5 py-1 rounded-full ${
                   isIncrease
                     ? "bg-emerald-200/60 text-emerald-800 border border-emerald-300"
                     : "bg-rose-200/60 text-rose-800 border border-rose-300"

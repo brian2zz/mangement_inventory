@@ -146,7 +146,7 @@ export function AppSidebar() {
             <Sparkles className="w-5 h-5 text-white animate-pulse" />
           </div>
           <div>
-            <span className="font-extrabold text-base text-white tracking-wide block leading-none">
+            <span className="font-bold text-base text-white tracking-wide block leading-none">
               INVENTRA
             </span>
             <span className="text-[10px] text-white/70 font-medium tracking-widest uppercase">
